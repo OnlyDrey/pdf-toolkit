@@ -16,9 +16,9 @@
     "appliedToSession": "Brukt - arbeidsfil oppdatert",
     "addFiles": "Legg til filer", "remove": "Fjern", "moveUp": "Flytt opp", "moveDown": "Flytt ned",
     "allPages": "Alle sider", "specificPages": "Bestemte sider", "pageRange": "Sideomrade",
-    "pageRangePlaceholder": "f.eks. 1,3,5-8", "portrait": "Staaende", "landscape": "Liggende",
-    "dragDropHere": "Dra og slipp en PDF-fil her, eller klikk for aa velge",
-    "dragDropMultiple": "Dra og slipp PDF-filer her, eller klikk for aa velge",
+    "pageRangePlaceholder": "f.eks. 1,3,5-8", "portrait": "Stående", "landscape": "Liggende",
+    "dragDropHere": "Dra og slipp en PDF-fil her, eller klikk for å velge",
+    "dragDropMultiple": "Dra og slipp PDF-filer her, eller klikk for å velge",
     "fileSizeKB": "{{size}} KB", "fileSizeMB": "{{size}} MB",
     "pages": "{{count}} side", "pages_other": "{{count}} sider",
     "processing": "Behandler...", "done": "Ferdig!", "error": "Feil",
@@ -28,48 +28,48 @@
   "language": { "en": "Engelsk", "nb": "Norsk" },
   "tools": {
     "merge": {
-      "title": "Sla sammen PDF-er", "description": "Kombiner flere PDF-filer til en. Dra for aa endre rekkefolge.",
-      "addFiles": "Legg til PDF-filer", "reorder": "Dra for aa endre rekkefolge",
+      "title": "Sla sammen PDF-er", "description": "Kombiner flere PDF-filer til en. Dra for å endre rekkefolge.",
+      "addFiles": "Legg til PDF-filer", "reorder": "Dra for å endre rekkefolge",
       "action": "Sla sammen og last ned",
       "fileCount_one": "{{count}} fil", "fileCount_other": "{{count}} filer",
-      "minimumFiles": "Legg til minst 2 PDF-filer for aa sla sammen."
+      "minimumFiles": "Legg til minst 2 PDF-filer for å sla sammen."
     },
     "compress": {
-      "title": "Komprimer PDF", "description": "Reduser filstorrelsen ved aa optimalisere den interne PDF-strukturen.",
+      "title": "Komprimer PDF", "description": "Reduser filstorrelsen ved å optimalisere den interne PDF-strukturen.",
       "note": "Bruker strukturell komprimering. Bildekvaliteten endres ikke.",
       "action": "Komprimer og last ned", "originalSize": "Opprinnelig storrelse",
       "compressedSize": "Komprimert storrelse", "reduction": "Reduksjon",
       "noReduction": "Ingen vesentlig reduksjon oppnadd. Filen kan allerede vaere optimalisert."
     },
     "extract": {
-      "title": "Hent ut sider", "description": "Hent ut bestemte sider eller sideomraader til en ny PDF.",
+      "title": "Hent ut sider", "description": "Hent ut bestemte sider eller sideområder til en ny PDF.",
       "selectPages": "Sider som skal hentes ut", "action": "Hent ut og last ned",
       "totalPages": "Totalt antall sider: {{count}}",
-      "hint": "Skriv inn sidenummer og omraader, f.eks. 1,3,5-8",
-      "previewHint": "Klikk paa sider for aa velge. Opptil 12 miniatyrbilder vises."
+      "hint": "Skriv inn sidenummer og områder, f.eks. 1,3,5-8",
+      "previewHint": "Klikk på sider for å velge. Opptil 12 miniatyrbilder vises."
     },
     "rotate": {
       "title": "Roter sider", "description": "Roter sider i PDF-en med 90, 180 eller 270 grader.",
       "angle": "Roteringsvinkel", "deg90": "90 grader med klokken", "deg180": "180 grader",
       "deg270": "270 grader (90 mot klokken)", "action": "Roter og last ned",
-      "applyTo": "Bruk paa", "preview": "Forhandsvisning (forste side)", "previewLabel": "Rotert {{deg}} grader"
+      "applyTo": "Bruk på", "preview": "Forhandsvisning (forste side)", "previewLabel": "Rotert {{deg}} grader"
     },
     "resize": {
-      "title": "Endre sidestorrelse", "description": "Endre storrelse paa alle sider i PDF-en til et standard papirformat.",
-      "paperSize": "Papirformat", "orientation": "Orientering", "scaleContent": "Skaler innhold for aa passe",
+      "title": "Endre sidestorrelse", "description": "Endre storrelse på alle sider i PDF-en til et standard papirformat.",
+      "paperSize": "Papirformat", "orientation": "Orientering", "scaleContent": "Skaler innhold for å passe",
       "action": "Endre storrelse og last ned", "dimensions": "{{width}} x {{height}} mm",
       "categories": { "ISO-A": "ISO A-serie", "ISO-B": "ISO B-serie", "ISO-C": "ISO C-serie", "US": "US og andre" },
-      "previewOriginal": "Original", "previewTarget": "Maal"
+      "previewOriginal": "Original", "previewTarget": "Mål"
     },
     "crop": {
-      "title": "Beskjær sider", "description": "Angi det synlige omraadet for PDF-sider med marginverdier.",
+      "title": "Beskjær sider", "description": "Angi det synlige området for PDF-sider med marginverdier.",
       "note": "Kun visuell beskjæring - innhold utenfor beskjæringsrammen er skjult, ikke fjernet.",
       "margins": "Marger (punkter)", "top": "Topp", "right": "Hoyre", "bottom": "Bunn", "left": "Venstre",
-      "action": "Beskjær og last ned", "applyTo": "Bruk paa", "preview": "Forhandsvisning (forste side)"
+      "action": "Beskjær og last ned", "applyTo": "Bruk på", "preview": "Forhandsvisning (forste side)"
     },
     "versionFix": {
-      "title": "Versjonsfix", "description": "Oppdag og skriv om PDF-versjonshoden til en maalversjon.",
-      "currentVersion": "Oppdaget versjon", "targetVersion": "Maalversjon",
+      "title": "Versjonsfix", "description": "Oppdag og skriv om PDF-versjonshoden til en målversjon.",
+      "currentVersion": "Oppdaget versjon", "targetVersion": "Målversjon",
       "action": "Fiks versjon og last ned", "unknown": "Ukjent",
       "versions": {
         "1.0": "PDF 1.0 - Acrobat 1 (1993)", "1.1": "PDF 1.1 - Acrobat 2 (1994)",
