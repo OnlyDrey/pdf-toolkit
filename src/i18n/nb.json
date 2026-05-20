@@ -1,6 +1,6 @@
 {
   "app": { "title": "PDF Toolkit", "tagline": "Enkle, private PDF-verktoy - behandlet direkte i nettleseren" },
-  "nav": { "merge": "Sla sammen", "compress": "Komprimer", "extract": "Hent ut sider", "rotate": "Roter", "resize": "Endre storrelse", "crop": "Beskjaer", "versionFix": "Versjonsfix" },
+  "nav": { "merge": "Sla sammen", "compress": "Komprimer", "extract": "Hent ut sider", "rotate": "Roter", "resize": "Endre storrelse", "crop": "Beskjær", "versionFix": "Versjonsfix" },
   "session": {
     "working": "Arbeider med",
     "download": "Last ned",
@@ -62,10 +62,10 @@
       "previewOriginal": "Original", "previewTarget": "Maal"
     },
     "crop": {
-      "title": "Beskjaer sider", "description": "Angi det synlige omraadet for PDF-sider med marginverdier.",
-      "note": "Kun visuell beskjaering - innhold utenfor beskjaeringsrammen er skjult, ikke fjernet.",
+      "title": "Beskjær sider", "description": "Angi det synlige omraadet for PDF-sider med marginverdier.",
+      "note": "Kun visuell beskjæring - innhold utenfor beskjæringsrammen er skjult, ikke fjernet.",
       "margins": "Marger (punkter)", "top": "Topp", "right": "Hoyre", "bottom": "Bunn", "left": "Venstre",
-      "action": "Beskjaer og last ned", "applyTo": "Bruk paa", "preview": "Forhandsvisning (forste side)"
+      "action": "Beskjær og last ned", "applyTo": "Bruk paa", "preview": "Forhandsvisning (forste side)"
     },
     "versionFix": {
       "title": "Versjonsfix", "description": "Oppdag og skriv om PDF-versjonshoden til en maalversjon.",
