@@ -2,10 +2,78 @@ version: 2
 updates:
   - package-ecosystem: npm
     directory: /app
-    schedule: { interval: weekly }
+    schedule: { interval: monthly }
+    open-pull-requests-limit: 3
+    labels: [dependencies]
+    groups:
+      compatible-runtime:
+        applies-to: version-updates
+        dependency-type: production
+        update-types: [minor, patch]
+        patterns: ['*']
+      compatible-tooling:
+        applies-to: version-updates
+        dependency-type: development
+        update-types: [minor, patch]
+        patterns: ['*']
+    # Deliberate maintenance is required for framework/toolchain major migrations.
+    # Security alerts remain enabled; major-only security fixes need manual review.
+    ignore:
+      - dependency-name: 'react*'
+        update-types: [version-update:semver-major]
+      - dependency-name: 'i18next*'
+        update-types: [version-update:semver-major]
+      - dependency-name: '@types/node'
+        update-types: [version-update:semver-major]
+      - dependency-name: postcss
+        update-types: [version-update:semver-major]
+      - dependency-name: autoprefixer
+        update-types: [version-update:semver-major]
+      - dependency-name: '@types/react*'
+        update-types: [version-update:semver-major]
+      - dependency-name: typescript
+        update-types: [version-update:semver-major]
+      - dependency-name: vite
+        update-types: [version-update:semver-major]
+      - dependency-name: '@vitejs/*'
+        update-types: [version-update:semver-major]
+      - dependency-name: vitest
+        update-types: [version-update:semver-major]
+      - dependency-name: pdfjs-dist
+        update-types: [version-update:semver-major]
+      - dependency-name: pdf-lib
+        update-types: [version-update:semver-major]
+      - dependency-name: tailwindcss
+        update-types: [version-update:semver-major]
+      - dependency-name: tailwind-merge
+        update-types: [version-update:semver-major]
+      - dependency-name: '*eslint*'
+        update-types: [version-update:semver-major]
+      - dependency-name: '@playwright/test'
+        update-types: [version-update:semver-major]
   - package-ecosystem: docker
     directory: /app
-    schedule: { interval: weekly }
+    schedule: { interval: monthly }
+    open-pull-requests-limit: 2
+    labels: [dependencies]
+    ignore:
+      - dependency-name: '*'
+        update-types: [version-update:semver-major]
+    groups:
+      compatible-images:
+        applies-to: version-updates
+        update-types: [minor, patch]
+        patterns: ['*']
   - package-ecosystem: github-actions
     directory: /
-    schedule: { interval: weekly }
+    schedule: { interval: monthly }
+    open-pull-requests-limit: 2
+    labels: [dependencies]
+    groups:
+      compatible-actions:
+        applies-to: version-updates
+        update-types: [minor, patch]
+        patterns: ['*']
+    ignore:
+      - dependency-name: '*'
+        update-types: [version-update:semver-major]

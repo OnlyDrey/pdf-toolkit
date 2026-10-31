@@ -13,7 +13,8 @@
     "lint": "eslint . --max-warnings 0",
     "format": "prettier --config .prettierrc.json --ignore-path .prettierignore --write . ../.github ../docs ../AGENTS.md ../compose.yaml ../README.md",
     "format:check": "prettier --config .prettierrc.json --ignore-path .prettierignore --check . ../.github ../docs ../AGENTS.md ../compose.yaml ../README.md",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:release": "node --test --test-isolation=none scripts/release.test.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "6.3.1",

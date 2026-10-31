@@ -37,7 +37,8 @@ For a local container build, run `docker compose -f app/compose.local.yaml up --
 
 ## Documentation
 
-- [Deployment and release guide](docs/DEPLOYMENT.md)
+- [Deployment and manual release guide](docs/DEPLOYMENT.md)
+- [Dependency maintenance and CI cost](docs/DEPENDENCIES.md)
 - [Verification and remaining manual checks](docs/VERIFICATION.md)
 - [Modernization audit](docs/AUDIT.md)
 
