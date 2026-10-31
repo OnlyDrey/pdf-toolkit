@@ -1,21 +1,10 @@
 import { useActiveTool } from '@/lib/active-tool-context'
 import { useTranslation } from 'react-i18next'
-import { MAX_PDF_BYTES } from '@/lib/pdf-document'
+import { acquirePreviewDocument } from '@/lib/pdf-preview'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import {
-  getDocument,
-  GlobalWorkerOptions,
-  type PDFDocumentLoadingTask,
-  type RenderTask,
-} from 'pdfjs-dist'
+import { type RenderTask } from 'pdfjs-dist'
 import { Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-
-// Vite resolves new URL(..., import.meta.url) to bundle/copy the worker file
-GlobalWorkerOptions.workerSrc = new URL(
-  'pdfjs-dist/build/pdf.worker.min.mjs',
-  import.meta.url,
-).href
 
 export interface PageDimensions {
   canvasW: number // rendered canvas width px
@@ -57,7 +46,7 @@ export function PdfPagePreview({
   useEffect(() => {
     if (!active) return
     let cancelled = false
-    let task: PDFDocumentLoadingTask | undefined
+    const document = acquirePreviewDocument(file)
     let render: RenderTask | undefined
     setLoading(true)
     setError(false)
@@ -65,18 +54,14 @@ export function PdfPagePreview({
 
     ;(async () => {
       try {
-        if (file.size > MAX_PDF_BYTES) throw new Error('tooLarge')
-        const buf = await file.arrayBuffer()
-        if (cancelled) return
-        task = getDocument({ data: new Uint8Array(buf) })
-        const pdf = await task.promise
+        const pdf = await document.promise
         if (cancelled) {
-          void task.destroy()
+          document.release()
           return
         }
         const page = await pdf.getPage(pageNumber)
         if (cancelled) {
-          void task.destroy()
+          document.release()
           return
         }
 
@@ -86,7 +71,7 @@ export function PdfPagePreview({
 
         const canvas = canvasRef.current
         if (!canvas) {
-          void task.destroy()
+          document.release()
           return
         }
         canvas.width = Math.round(vp.width)
@@ -96,7 +81,7 @@ export function PdfPagePreview({
         render = page.render({ canvas, canvasContext: ctx, viewport: vp })
         await render.promise
         if (cancelled) {
-          void task.destroy()
+          document.release()
           return
         }
 
@@ -108,9 +93,9 @@ export function PdfPagePreview({
         })
         setLoading(false)
         setReady(true)
-        void task.destroy()
+        document.release()
       } catch {
-        void task?.destroy()
+        document.release()
         if (!cancelled) {
           setError(true)
           setLoading(false)
@@ -121,7 +106,7 @@ export function PdfPagePreview({
     return () => {
       cancelled = true
       render?.cancel()
-      void task?.destroy()
+      document.release()
     }
   }, [file, pageNumber, maxWidth, onDimensions, active])
 

@@ -1,139 +1,48 @@
 # PDF Toolkit
 
-> Simple, private PDF tools — processed entirely in your browser.
+Private PDF tools with English and Norwegian Bokmål localization. PDF documents stay in your browser; Nginx serves static files and never receives documents. No telemetry or document uploads.
 
-No uploads. No servers. No data leaves your device. All PDF processing runs locally using [pdf-lib](https://pdf-lib.js.org/) and [pdfjs-dist](https://mozilla.github.io/pdf.js/).
+Merge, extract, rotate, resize, crop, structurally compress, and inspect/edit PDF version headers. Apply operations to an in-memory working file, switch tools, then Download or Save & Download. Each tool can also accept its own input. Refreshing or closing the page loses the session; theme and language preferences alone persist locally.
 
----
+## Development
 
-## Features
+Use Node 24 LTS and npm:
 
-### Tools
-
-| Tool | Description |
-|---|---|
-| **Merge** | Combine multiple PDFs into one. Drag to reorder before merging. |
-| **Compress** | Reduce file size by optimising the internal PDF structure (object streams). |
-| **Extract Pages** | Pick pages by clicking thumbnails or typing ranges (e.g. `1,3,5-8`). |
-| **Rotate** | Rotate all pages or a range by 90 / 180 / 270 degrees. Live preview included. |
-| **Resize** | Resize pages to any ISO A/B/C or US paper size with optional content scaling. |
-| **Crop** | Trim page margins using point values. Visual overlay preview updates in real time. |
-| **Version Fix** | Detect and rewrite the PDF version header (1.0 – 2.0). |
-
-### Session Workflow
-
-Upload a PDF once and apply multiple operations without re-uploading between steps:
-
-1. **Upload** a PDF in any tool — it becomes the **working file** available in all tools automatically.
-2. Click **Apply** in a tool — the result is saved as the new working file. No automatic download.
-3. **Switch tabs freely** — the working file is already loaded in every tool.
-4. When finished, use the session bar to **Download** (keep editing) or **Save & Download** (done — clears session).
-5. **Discard** clears the session without downloading.
-
-The session is held in memory only and is automatically lost on page refresh or browser close.
-
-### UI / UX
-
-- **Live previews** — Rotate shows a rotated first-page thumbnail; Crop shows a real-time overlay; Resize shows an original vs. target size comparison; Extract shows a clickable thumbnail grid.
-- **Clickable thumbnails** in Extract — click any page to toggle selection. The text input stays in sync.
-- **Theme toggle** — Light, Dark, or System (follows OS preference). Preference is stored in `localStorage`.
-- **Tab state persistence** — uploading a file to a tool preserves it when switching tabs.
-- **Internationalisation** — English and Norwegian Bokmål (`nb`). Language toggle in the header.
-
----
-
-## Tech Stack
-
-| Layer | Technology |
-|---|---|
-| Framework | React 18 + TypeScript |
-| Build tool | Vite 5 |
-| PDF processing | pdf-lib (manipulation), pdfjs-dist (page rendering / previews) |
-| Styling | Tailwind CSS + shadcn/ui |
-| Drag & drop (Merge) | @dnd-kit/core + @dnd-kit/sortable |
-| i18n | react-i18next |
-| Unit tests | Vitest |
-| Container | Docker (nginx:alpine, multi-stage build) |
-
----
-
-## Getting Started
-
-### Prerequisites
-
-- Node.js 18+
-- npm 9+
-
-### Development
-
-```bash
-npm install
+```sh
+npm ci
 npm run dev
-```
-
-Open [http://localhost:5173](http://localhost:5173).
-
-### Production build
-
-```bash
+npm run typecheck
+npm run lint
+npm run format:check
+npm run test:run
 npm run build
+npx playwright install --with-deps chromium
+npm run test:e2e
 ```
 
-Output is in `dist/`.
+The stack is React 19, TypeScript 6, Vite 8, pdf-lib, PDF.js 6, Tailwind 3 and Nginx. TypeScript 6 and Tailwind 3 remain compatible with the linting and existing design. PDF.js uses a local, matching bundled worker. In environments with system Chromium, set `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium`. Browser tests cover desktop and mobile; `TEST_BASE_URL` can target a running production container instead of Vite preview.
 
-### Docker
+## Deploy
 
-```bash
-docker compose up --build
+```sh
+# Use the supplied deployment Compose file, or copy its definition onto the host.
+docker compose pull
+docker compose up -d
 ```
 
-Serves the built app on port **80** via nginx.
+Default image: `ghcr.io/onlydrey/pdf-toolkit:latest`; beta: `ghcr.io/onlydrey/pdf-toolkit:beta`. Prefer a reviewed version or immutable digest in production. Open [localhost:8080](http://localhost:8080); health endpoint: `/healthz`. Containers run as UID 101 with a read-only filesystem and writable `/tmp`.
 
----
+For local builds, use `docker compose -f docker-compose.yml -f compose.local.yml up --build`. See [deployment and release instructions](docs/DEPLOYMENT.md) for registry-only installation, approval setup, upgrade, rollback and supported platforms.
 
-## Project Structure
+## Limitations and privacy
 
-```
-src/
-├── components/
-│   ├── layout/
-│   │   ├── Header.tsx          # App header with theme + language toggles
-│   │   ├── NavTabs.tsx         # Tool navigation tabs
-│   │   ├── SessionBar.tsx      # Working file bar (Apply / Download / Discard)
-│   │   └── ThemeProvider.tsx   # Light / Dark / System theme context
-│   ├── tools/
-│   │   ├── FileDropZone.tsx    # Shared drag-and-drop file input
-│   │   ├── PdfPagePreview.tsx  # Canvas-based PDF page renderer (pdfjs-dist)
-│   │   ├── Merge.tsx
-│   │   ├── Compress.tsx
-│   │   ├── Extract.tsx
-│   │   ├── Rotate.tsx
-│   │   ├── Resize.tsx
-│   │   ├── Crop.tsx
-│   │   └── VersionFix.tsx
-│   └── ui/                     # shadcn/ui primitives
-├── i18n/
-│   ├── index.ts
-│   ├── en.json
-│   └── nb.json
-├── lib/
-│   ├── paper-sizes.ts          # ISO A/B/C + US paper size catalogue
-│   ├── pdf-utils.ts            # readFileAsArrayBuffer, formatFileSize, parsePageRange, downloadBlob
-│   ├── session-context.ts      # React context for the working-file session
-│   ├── theme-context.ts        # React context for theme preference
-│   └── utils.ts                # cn() helper
-├── App.tsx                     # Root component — all tools stay mounted (hidden class)
-└── main.tsx
-```
+- PDF manipulation runs locally in JavaScript. No server-side processing, uploads, analytics, or remote PDF worker is used. A normal initial page load requests static assets; document processing does not upload anything. Offline operation requires the page and assets to remain available; no service-worker offline installation is provided.
+- Inputs are limited to 100 MiB per document or combined merge input. Memory use can be several times the source size, and large operations may pause the UI. Thumbnail grids share one PDF.js document/worker per file. Only the active tool adopts session changes or renders previews; Extract shows at most 12 previews and preview canvas height is bounded.
+- Malformed, empty, unsupported and encrypted PDFs report errors. Decrypt a copy locally first. Test important documents with your normal reader; complex forms, annotations, signatures, unusual fonts, and advanced PDF features need manual validation. Changes may invalidate digital signatures.
+- Compression rewrites object streams without reducing image quality. It may provide little benefit. The actual candidate size/change is shown; if the result is not smaller, the original bytes remain the working file.
+- Crop changes the visible crop box. Hidden content remains in the file: **crop is not redaction**. Margins use unrotated PDF coordinates, in points.
+- Version Fix edits only the three header version characters. It does not convert PDF features, remove encryption, or establish PDF/A/conformance. It validates a complete header and document, considers catalog `/Version`, and blocks downgrades. Raising a header is not proof of compatibility with any reader.
 
----
-
-## Privacy
-
-All processing happens **in the browser using WebAssembly and the Web APIs**. No PDF content, metadata, or filename is ever sent to any server. The app can be used fully offline once loaded.
-
----
-
-## License
+CI validates types, lint, formatting, tests, production build, dependency advisories, browser workflows, container startup and container vulnerabilities. Release publication happens only through approved version tags. Stable tags update `latest`; prereleases update `beta` exclusively. Both target amd64 and arm64, with SBOM and provenance. See [audit notes](docs/AUDIT.md) and [verification results](docs/VERIFICATION.md) for evidence and remaining checks.
 
 MIT — see [LICENSE](LICENSE).

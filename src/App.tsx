@@ -29,37 +29,72 @@ export default function App() {
           <NavTabs activeTab={activeTab} onTabChange={setActiveTab} />
           <SessionBar />
           <main className="mx-auto max-w-5xl px-4 py-8">
-            <div className={activeTab === 'merge' ? '' : 'hidden'}>
+            <div
+              id="tool-panel-merge"
+              role="tabpanel"
+              aria-labelledby="tool-tab-merge"
+              className={activeTab === 'merge' ? '' : 'hidden'}
+            >
               <ActiveToolContext.Provider value={activeTab === 'merge'}>
                 <Merge />
               </ActiveToolContext.Provider>
             </div>
-            <div className={activeTab === 'compress' ? '' : 'hidden'}>
+            <div
+              id="tool-panel-compress"
+              role="tabpanel"
+              aria-labelledby="tool-tab-compress"
+              className={activeTab === 'compress' ? '' : 'hidden'}
+            >
               <ActiveToolContext.Provider value={activeTab === 'compress'}>
                 <Compress />
               </ActiveToolContext.Provider>
             </div>
-            <div className={activeTab === 'extract' ? '' : 'hidden'}>
+            <div
+              id="tool-panel-extract"
+              role="tabpanel"
+              aria-labelledby="tool-tab-extract"
+              className={activeTab === 'extract' ? '' : 'hidden'}
+            >
               <ActiveToolContext.Provider value={activeTab === 'extract'}>
                 <Extract />
               </ActiveToolContext.Provider>
             </div>
-            <div className={activeTab === 'rotate' ? '' : 'hidden'}>
+            <div
+              id="tool-panel-rotate"
+              role="tabpanel"
+              aria-labelledby="tool-tab-rotate"
+              className={activeTab === 'rotate' ? '' : 'hidden'}
+            >
               <ActiveToolContext.Provider value={activeTab === 'rotate'}>
                 <Rotate />
               </ActiveToolContext.Provider>
             </div>
-            <div className={activeTab === 'resize' ? '' : 'hidden'}>
+            <div
+              id="tool-panel-resize"
+              role="tabpanel"
+              aria-labelledby="tool-tab-resize"
+              className={activeTab === 'resize' ? '' : 'hidden'}
+            >
               <ActiveToolContext.Provider value={activeTab === 'resize'}>
                 <Resize />
               </ActiveToolContext.Provider>
             </div>
-            <div className={activeTab === 'crop' ? '' : 'hidden'}>
+            <div
+              id="tool-panel-crop"
+              role="tabpanel"
+              aria-labelledby="tool-tab-crop"
+              className={activeTab === 'crop' ? '' : 'hidden'}
+            >
               <ActiveToolContext.Provider value={activeTab === 'crop'}>
                 <Crop />
               </ActiveToolContext.Provider>
             </div>
-            <div className={activeTab === 'versionFix' ? '' : 'hidden'}>
+            <div
+              id="tool-panel-versionFix"
+              role="tabpanel"
+              aria-labelledby="tool-tab-versionFix"
+              className={activeTab === 'versionFix' ? '' : 'hidden'}
+            >
               <ActiveToolContext.Provider value={activeTab === 'versionFix'}>
                 <VersionFix />
               </ActiveToolContext.Provider>
