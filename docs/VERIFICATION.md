@@ -31,10 +31,20 @@ A fresh build with `docker build -t pdf-toolkit:structure app` was attempted but
 
 Existing dependencies were reused without another installation. No workflow was manually dispatched and no image, package, release or PR was published. The cleanup commit contains `[skip ci]`; only `origin/work` is updated, and `main` is left untouched. See [AGENTS.md](../AGENTS.md) for persistent Git rules.
 
-## Manual release controls and dependency optimization
+## Earlier manual release controls and dependency optimization (superseded UX)
 
 Local validation of the manual-release change passed 27 release-policy tests, the existing 37 unit tests and 10 desktop/mobile browser cases, TypeScript, ESLint, Prettier, production build and actionlint. Browser regression for this workflow-only change used Vite preview; production Docker assets and application behavior were not modified.
 
 YAML/contract checks verified exact-SHA forwarding to both reusable CI jobs and image builds, forced full release validation, Environment-gated write permissions, two-platform build/scan configuration, tag reservation after scans, pinned Actions references and local documentation links. The actual CI condition was checked against normal PRs, unapproved/approved Dependabot PRs and forced release validation. The aggregate `ready` job always evaluates both job results, so a skipped Docker/browser job cannot itself establish merge readiness.
 
 Release-policy tests use local GitHub API fixtures for branch ancestry, annotated tags, version collisions, denied API access and absent/bypassable approval configuration. They do not establish that repository Environments, tag rules, GHCR permissions or the default-branch dispatch UI are already configured. Administrators must configure those settings and require `ready` before relying on the gates. No workflow was dispatched, no approval label was applied, no dependency PR was merged, and no image/package/release was published. No GitHub Actions minutes were consumed by this task; publication remains untested until a separately authorized run.
+
+## Simplified two-input release workflow
+
+The current manual form has only channel and base version. Release policy tests use local GitHub API fixtures to verify that Beta resolves work HEAD and Production resolves main HEAD regardless of the workflow selector, that beta numbering includes all tag pages and uses exact integer arithmetic, and that concurrency conflicts never overwrite a version. They cover stale source HEADs, reserved-tag changes, existing stable tags/releases, and missing or bypassable Environment protection.
+
+The release archive is built/scanned before Environment approval and is uploaded unchanged afterward. Tests verify both required OCI platforms, source/version labels, preserved multi-platform digest and rejection of unrelated or tampered images. Offline Trivy smoke checks with synthetic empty OCI images confirmed that the generated single-platform layouts select amd64 and arm64 separately; this is a scan-input compatibility check, not a scan of a real newly published application image.
+
+Local validation passed 38 release-policy tests, the existing 37 application unit tests, 10 desktop/mobile browser tests, type/lint/format checks, the production build, actionlint, YAML/permissions/source/concurrency/artifact-order contracts and documentation links. Browser regression used Vite preview. Application dependencies, Docker assets and the reusable CI workflow are unchanged.
+
+No Actions workflow, actual release reservation, image upload or GitHub Release creation was executed. The default-branch UI, GitHub Environment approvals, tag rules, real multi-platform archive export, Skopeo/GHCR digest preservation and release metadata upload still require a separately authorized end-to-end run. Administrators must promote the workflow to the default branch, allow unique tag creation, configure both protected Environments for trusted workflow refs independently of application sources, and grant the publication token repository-linked package access. Artifact retention and source-HEAD stability apply as documented in the deployment guide. No GitHub Actions minutes were consumed by this task.

@@ -1,54 +1,37 @@
-name: Release
-run-name: Release ${{ inputs.channel || github.ref_name }} ${{ inputs.version }} from ${{ inputs.source_sha || github.sha }}
+name: Publish a release
+run-name: ${{ inputs.channel }} release · ${{ inputs.version }}
 on:
   workflow_dispatch:
     inputs:
       channel:
-        description: Release channel (Beta from work; Production from main)
+        description: Beta uses work HEAD; Production uses main HEAD
         type: choice
         options: [beta, production]
         required: true
       version:
-        description: Version without v (1.2.0-beta.1 for Beta; 1.2.0 for Production)
+        description: Base version, e.g. 1.2.0 (Beta numbering is automatic)
         type: string
         required: true
-      source_sha:
-        description: Approved full 40-character commit SHA on the required source branch
-        type: string
-        required: true
-      confirm_publish:
-        description: I intend to publish this version after CI and Environment approval
-        type: boolean
-        required: true
-        default: false
-  push:
-    tags: ['v*']
 permissions:
   contents: read
+# Also serializes with the previous workflow while maintainers promote this policy.
+# Atomic Git ref creation is the final guard against another writer reserving a version.
 concurrency:
   group: release-promotion
   cancel-in-progress: false
-env:
-  RELEASE_EVENT: ${{ github.event_name }}
-  RELEASE_REF: ${{ github.ref }}
-  RELEASE_EVENT_SHA: ${{ github.sha }}
-  RELEASE_CHANNEL: ${{ inputs.channel }}
-  RELEASE_VERSION: ${{ inputs.version }}
-  RELEASE_SOURCE_SHA: ${{ inputs.source_sha }}
-  RELEASE_CONFIRM: ${{ inputs.confirm_publish }}
 jobs:
   prepare:
+    name: Resolve source and reserve version
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write # Only creates a unique annotated version tag; never updates a branch.
       actions: read
     outputs:
       version: ${{ steps.plan.outputs.version }}
-      channel: ${{ steps.plan.outputs.channel }}
-      image_channel: ${{ steps.plan.outputs.image_channel }}
-      environment: ${{ steps.plan.outputs.environment }}
-      source_sha: ${{ steps.plan.outputs.source_sha }}
       tag: ${{ steps.plan.outputs.tag }}
+      source_sha: ${{ steps.plan.outputs.source_sha }}
+      environment: ${{ steps.plan.outputs.environment }}
+      image_channel: ${{ steps.plan.outputs.image_channel }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -57,88 +40,75 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '24'
-      - name: Validate release policy locally
-        run: node --test --test-isolation=none app/scripts/release.test.mjs
-      - name: Validate inputs, source, unique version and protected Environment
+      - run: node --test --test-isolation=none app/scripts/release.test.mjs
+      - name: Pin channel HEAD and atomically reserve its version
         id: plan
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_EVENT: ${{ github.event_name }}
+          RELEASE_CHANNEL: ${{ inputs.channel }}
+          RELEASE_VERSION: ${{ inputs.version }}
         run: node app/scripts/release.mjs prepare
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: release-plan
+          path: release-plan.json
+          if-no-files-found: error
+          retention-days: 90
+          overwrite: true
   validate:
+    name: Validate the pinned source
     needs: prepare
     uses: ./.github/workflows/ci.yml
     with:
       source_sha: ${{ needs.prepare.outputs.source_sha }}
       require_full_validation: true
-  publish:
-    name: Approve ${{ needs.prepare.outputs.tag }} at ${{ needs.prepare.outputs.source_sha }}
+  build:
+    name: Build and scan both platforms without publishing
+    permissions:
+      contents: read
+      actions: read
     needs: [prepare, validate]
     runs-on: ubuntu-latest
-    environment: ${{ needs.prepare.outputs.environment }}
-    permissions:
-      contents: write
-      packages: write
-      actions: read
     env:
-      SOURCE_SHA: ${{ needs.prepare.outputs.source_sha }}
+      EXPECTED_SOURCE_SHA: ${{ needs.prepare.outputs.source_sha }}
+      EXPECTED_TAG: ${{ needs.prepare.outputs.tag }}
+    outputs:
+      image_digest: ${{ steps.image.outputs.image_digest }}
+      archive_sha256: ${{ steps.image.outputs.archive_sha256 }}
     steps:
-      - name: Check out release policy at the workflow revision
+      - name: Check out immutable release policy
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ github.sha }}
           path: release-policy
           persist-credentials: false
-      - name: Check out the exact commit validated by CI
+      - name: Check out exactly the source validated by CI
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ needs.prepare.outputs.source_sha }}
           path: release-source
           persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: release-plan
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '24'
-      - name: Recheck source, tag uniqueness and Environment after human approval
+      - name: Stop if the selected branch HEAD or reservation changed
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: node release-policy/app/scripts/release.mjs recheck
       - uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
       - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
-      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Require an unused GHCR version tag
-        env:
-          VERSION: ${{ needs.prepare.outputs.version }}
-        run: |
-          set -euo pipefail
-          if docker buildx imagetools inspect "ghcr.io/onlydrey/pdf-toolkit:$VERSION" >/tmp/version-manifest 2>/tmp/version-error; then
-            echo 'Version image tag already exists; choose a new version.' >&2; exit 1
-          elif ! grep -Eqi 'manifest unknown|not found' /tmp/version-error; then
-            cat /tmp/version-error >&2; exit 1
-          fi
-      - name: Resolve a previously validated artifact
-        id: existing
-        env:
-          IMAGE: ghcr.io/onlydrey/pdf-toolkit
-        run: |
-          set -euo pipefail
-          if docker buildx imagetools inspect "$IMAGE:sha-$SOURCE_SHA" > /tmp/manifest 2>/tmp/manifest-error; then
-            echo 'reuse=true' >> "$GITHUB_OUTPUT"
-          elif grep -Eqi 'manifest unknown|not found' /tmp/manifest-error; then
-            echo 'reuse=false' >> "$GITHUB_OUTPUT"
-          else
-            cat /tmp/manifest-error >&2; exit 1
-          fi
-      - name: Build candidate (no moving or version tag yet)
-        if: steps.existing.outputs.reuse != 'true'
+      - name: Build the release archive once, reusing CI build cache
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: ./release-source/app
           platforms: linux/amd64,linux/arm64
-          push: true
-          tags: ghcr.io/onlydrey/pdf-toolkit:sha-${{ needs.prepare.outputs.source_sha }}
+          push: false
+          outputs: type=oci,dest=image.tar
+          tags: ghcr.io/onlydrey/pdf-toolkit:${{ needs.prepare.outputs.version }}
           provenance: mode=max
           sbom: true
           labels: |
@@ -148,62 +118,144 @@ jobs:
             org.opencontainers.image.licenses=MIT
           cache-from: type=gha
           cache-to: type=gha,mode=max
-      - id: candidate
+      - name: Verify platform/source metadata and prepare individual scan layouts
+        id: image
         run: |
-          digest=$(docker buildx imagetools inspect "ghcr.io/onlydrey/pdf-toolkit:sha-$SOURCE_SHA" --format '{{.Manifest.Digest}}')
-          echo "ref=ghcr.io/onlydrey/pdf-toolkit@$digest" >> "$GITHUB_OUTPUT"
-      - name: Scan amd64 candidate before promotion
+          mkdir image-layout
+          tar -xf image.tar -C image-layout
+          node release-policy/app/scripts/release.mjs image
+          sha256sum image.tar > image.tar.sha256
+          printf 'archive_sha256=%s\n' "$(cut -d ' ' -f1 image.tar.sha256)" >> "$GITHUB_OUTPUT"
+      - name: Scan the exact amd64 image
         uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
-        env:
-          TRIVY_PLATFORM: linux/amd64
-          TRIVY_USERNAME: ${{ github.actor }}
-          TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
         with:
-          image-ref: ${{ steps.candidate.outputs.ref }}
+          version: v0.76.1
+          input: scans/amd64
+          scanners: vuln
           severity: HIGH,CRITICAL
           exit-code: '1'
-      - name: Scan arm64 candidate before promotion
+      - name: Scan the exact arm64 image
         uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
-        env:
-          TRIVY_PLATFORM: linux/arm64
-          TRIVY_USERNAME: ${{ github.actor }}
-          TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
         with:
-          image-ref: ${{ steps.candidate.outputs.ref }}
+          version: v0.76.1
+          input: scans/arm64
+          scanners: vuln
           severity: HIGH,CRITICAL
           exit-code: '1'
-      - name: Require an unused GHCR version tag
+      - name: Summarize the scanned artifact for reviewers
         env:
-          VERSION: ${{ needs.prepare.outputs.version }}
+          DIGEST: ${{ steps.image.outputs.image_digest }}
         run: |
-          set -euo pipefail
-          if docker buildx imagetools inspect "ghcr.io/onlydrey/pdf-toolkit:$VERSION" >/tmp/version-manifest 2>/tmp/version-error; then
-            echo 'Version image tag already exists; choose a new version.' >&2; exit 1
-          elif ! grep -Eqi 'manifest unknown|not found' /tmp/version-error; then
-            cat /tmp/version-error >&2; exit 1
-          fi
-      - name: Reserve the validated version tag after scans
+          printf '## Ready for Environment approval\n\nVersion: `%s`\n\nSource: `%s`\n\nScanned multi-platform digest: `%s`\n' "$EXPECTED_TAG" "$EXPECTED_SOURCE_SHA" "$DIGEST" >> "$GITHUB_STEP_SUMMARY"
+      - name: Preserve only the successfully scanned archive
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: scanned-release-image
+          path: |
+            image.tar
+            image.tar.sha256
+            image-metadata.json
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
+          overwrite: true
+  publish:
+    name: Approve and publish ${{ needs.prepare.outputs.tag }} at ${{ needs.prepare.outputs.source_sha }}
+    needs: [prepare, validate, build]
+    runs-on: ubuntu-latest
+    environment: ${{ needs.prepare.outputs.environment }}
+    permissions:
+      contents: write
+      packages: write
+      actions: read
+    env:
+      EXPECTED_SOURCE_SHA: ${{ needs.prepare.outputs.source_sha }}
+      EXPECTED_TAG: ${{ needs.prepare.outputs.tag }}
+      EXPECTED_DIGEST: ${{ needs.build.outputs.image_digest }}
+      EXPECTED_ARCHIVE_SHA256: ${{ needs.build.outputs.archive_sha256 }}
+      VERSION: ${{ needs.prepare.outputs.version }}
+      IMAGE_CHANNEL: ${{ needs.prepare.outputs.image_channel }}
+      IMAGE: ghcr.io/onlydrey/pdf-toolkit
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.sha }}
+          path: release-policy
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: release-plan
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: scanned-release-image
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24'
+      - name: Verify that the approved archive is exactly the scanned artifact
+        run: |
+          printf '%s  image.tar\n' "$EXPECTED_ARCHIVE_SHA256" | sha256sum --check -
+          mkdir image-layout
+          tar -xf image.tar -C image-layout
+          node release-policy/app/scripts/release.mjs verify-image
+      - name: Install the OCI uploader (no rebuild or manifest conversion)
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends skopeo
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Final source, reservation and approval-protection check
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: node release-policy/app/scripts/release.mjs tag
-      - name: Promote the scanned digest
-        env:
-          CANDIDATE: ${{ steps.candidate.outputs.ref }}
-          VERSION: ${{ needs.prepare.outputs.version }}
-          CHANNEL: ${{ needs.prepare.outputs.image_channel }}
-        run: |
-          set -euo pipefail
-          image=ghcr.io/onlydrey/pdf-toolkit
-          # Beta's channel is computed from a strict tag parser and cannot be latest.
-          docker buildx imagetools create --tag "$image:$VERSION" --tag "$image:$CHANNEL" "$CANDIDATE"
-      - name: Create GitHub Release
+        run: node release-policy/app/scripts/release.mjs recheck
+      - name: Publish the preserved digest and this channel only
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ needs.prepare.outputs.tag }}
-          CHANNEL: ${{ needs.prepare.outputs.image_channel }}
-          CANDIDATE: ${{ steps.candidate.outputs.ref }}
         run: |
-          printf 'Container: `%s`\n\nUse the digest for reproducible deployments.\n' "$CANDIDATE" > /tmp/release-notes.md
+          set -euo pipefail
+          build_tag="sha-$EXPECTED_SOURCE_SHA-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          for tag in "$VERSION" "$build_tag"; do
+            if docker buildx imagetools inspect "$IMAGE:$tag" >/tmp/version-manifest 2>/tmp/version-error; then
+              echo "Refusing to overwrite existing image tag $tag" >&2; exit 1
+            elif ! grep -Eqi 'manifest unknown|not found' /tmp/version-error; then
+              cat /tmp/version-error >&2; exit 1
+            fi
+          done
+          auth_file="${DOCKER_CONFIG:-$HOME/.docker}/config.json"
+          skopeo copy --all --preserve-digests --authfile "$auth_file" oci-archive:image.tar "docker://$IMAGE:$VERSION"
+          actual=$(docker buildx imagetools inspect "$IMAGE:$VERSION" --format '{{.Manifest.Digest}}')
+          test "$actual" = "$EXPECTED_DIGEST"
+          node release-policy/app/scripts/release.mjs recheck
+          docker buildx imagetools create --tag "$IMAGE:$build_tag" --tag "$IMAGE:$IMAGE_CHANNEL" "$IMAGE@$EXPECTED_DIGEST"
+      - name: Create versioned GitHub Release with source and digest metadata
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          printf 'Version: `%s`\n\nSource: `%s`\n\nImage: `%s@%s`\n\nRun: %s/%s/actions/runs/%s\n' "$EXPECTED_TAG" "$EXPECTED_SOURCE_SHA" "$IMAGE" "$EXPECTED_DIGEST" "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" > release-notes.md
           args=()
-          if [ "$CHANNEL" = beta ]; then args+=(--prerelease --latest=false); else args+=(--latest); fi
-          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag --generate-notes --notes-file /tmp/release-notes.md "${args[@]}"
+          if [ "$IMAGE_CHANNEL" = beta ]; then args+=(--prerelease --latest=false); else args+=(--latest); fi
+          gh release create "$EXPECTED_TAG" release-plan.json image-metadata.json --repo "$GITHUB_REPOSITORY" --verify-tag --title "$EXPECTED_TAG" --generate-notes --notes-file release-notes.md "${args[@]}"
+  summary:
+    name: Release result and traceability
+    if: always()
+    needs: [prepare, validate, build, publish]
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - env:
+          TAG: ${{ needs.prepare.outputs.tag }}
+          SOURCE: ${{ needs.prepare.outputs.source_sha }}
+          DIGEST: ${{ needs.build.outputs.image_digest }}
+          PREPARE: ${{ needs.prepare.result }}
+          VALIDATE: ${{ needs.validate.result }}
+          BUILD: ${{ needs.build.result }}
+          PUBLISH: ${{ needs.publish.result }}
+        run: |
+          printf '## Release result\n\nVersion: `%s`\n\nSource: `%s`\n\nImage digest: `%s`\n\nPrepare: %s; CI: %s; build/scans: %s; publication: %s\n' "$TAG" "$SOURCE" "$DIGEST" "$PREPARE" "$VALIDATE" "$BUILD" "$PUBLISH" >> "$GITHUB_STEP_SUMMARY"
+          if [ "$PUBLISH" != success ]; then
+            echo 'Release incomplete. Any reserved tag is retained for traceability; inspect the failed job and artifacts. Never overwrite an existing version.' >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi

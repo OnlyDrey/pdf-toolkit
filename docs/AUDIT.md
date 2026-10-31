@@ -8,7 +8,7 @@ Dependencies are locked to stable versions. React 19, Vite 8, Vitest 5 and PDF.j
 
 Large documents still require browser memory proportional to document size. pdf-lib mutations execute on the UI thread; a Web Worker rewrite is outside this modernization. Previews are bounded and only active tools render. Digital signatures may be invalidated by mutation. Crop hides content; it is not redaction. Header edits do not convert PDF features or establish conformance.
 
-Release governance requires repository configuration: protect main and version tags, configure beta/production environments with required reviewers, and restrict production to stable tags. Workflow files cannot install repository protection rules themselves.
+Release governance requires repository configuration: protect main and version tags, configure beta/production environments with required reviewers, and restrict publication to protected workflow refs and automatically pinned channel sources. Workflow files cannot install repository protection rules themselves.
 
 ## Repository organization
 

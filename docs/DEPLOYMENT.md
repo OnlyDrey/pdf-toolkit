@@ -49,65 +49,61 @@ In a managed build environment that requires an extra CA, pass `--secret id=prox
 
 ## Release governance
 
-The release workflow supports manual dispatch and intentional `v*` tag pushes. Ordinary development commits and branch pushes cannot publish images. Every path validates the requested commit, checks source restrictions, waits for human Environment approval, scans both image platforms, and uses a unique version. Configuring the workflow is not permission to run it.
+Open **Actions → Publish a release → Run workflow** and enter just:
+
+1. **`channel`**: `beta` or `production`.
+2. **`version`**: a base semantic version, such as `1.2.0`.
+
+There is no commit input, beta sequence field, manual Git tag step or confirmation checkbox. The workflow is manual-only; development pushes and version-tag pushes do not start publishing. Configuring this workflow is not authorization for Codex to run it.
+
+### Beta example
+
+Choose `channel: beta`, `version: 1.2.0`. At preparation time, the workflow resolves the current HEAD of **`work`** and records that exact SHA. It reads all existing Git tags for that base, finds the highest `v1.2.0-beta.N`, and reserves the next number, starting at 1. If the highest is `beta.4`, the new release is `v1.2.0-beta.5` and its Docker version is `1.2.0-beta.5`.
+
+The workflow branch selector chooses the release-policy code only: selecting `main` in that UI still builds `work` for Beta. After CI, both-platform build/scans and the beta Environment approval, publication updates the versioned image and moving **`beta`** tag. Beta never writes `latest`.
+
+### Production example
+
+Choose `channel: production`, `version: 1.2.0`. The application source is always the current HEAD of **`main`**, even if the workflow UI selector is `work`. The workflow reserves **`v1.2.0`**, validates the recorded SHA, and builds/scans its image. A human must approve the protected **production** Environment before any GHCR publication or GitHub Release creation.
+
+Production publishes **`1.2.0`** and **`latest`**, with a stable GitHub Release. It never modifies `beta`. An existing stable tag or versioned release is rejected rather than reused or overwritten.
+
+### Pipeline and immutable artifacts
+
+1. Validate the two inputs, resolve channel HEAD once and verify Environment protection settings.
+2. Calculate the version and atomically create an annotated Git tag. Its message records source SHA, version and workflow-run URL. Global `release-promotion` concurrency serializes release runs; atomic ref creation also prevents collisions with other tag writers. A beta collision refreshes tags and retries a bounded number of times; it never forces an existing ref.
+3. Check out the resolved SHA and run the existing reusable CI with `require_full_validation: true`. Dependabot cost controls cannot skip a release check.
+4. Check the branch HEAD/reservation again, then build one AMD64/ARM64 OCI archive using the existing Dockerfile and CI build cache, including OCI source/version labels, SBOM and provenance. No registry image is pushed at this stage.
+5. Verify both architecture configs and metadata, then scan each exact platform separately for HIGH/CRITICAL vulnerabilities. Preserve the complete original archive and checksum only after both scans pass.
+6. Wait for protected Environment approval. Both existing beta and production reviewer gates remain enabled; Production approval is mandatory.
+7. Download and verify the same archive against the checksum recorded in the trusted build-job output (not merely a checksum file from the artifact), plus source/version labels and the expected multi-platform digest. Immediately before upload and again before moving channel aliases, require the selected source branch HEAD and annotated reservation to remain exactly unchanged. If either changed, stop; do not silently select or build a newer commit.
+8. Use Skopeo with `--all --preserve-digests` to copy those scanned bytes to GHCR without rebuilding or converting the manifests. Verify the remote digest, then set only the selected moving channel alias and a unique `sha-<source>-<run>-<attempt>` build reference.
+9. Create the versioned GitHub Release. Notes and attached JSON metadata record the exact source SHA, version, image digest and run. The final run summary reports success/failure for preparation, CI, build/scans and publication.
+
+Existing registry images are never guessed to be equivalent merely because their tag contains a SHA. Reuse comes from the validated artifact within the run and Buildx cache; the publication job does not rebuild the image. GHCR version/build tags must be absent before upload. Only moving channel aliases intentionally change. Digests, rather than technically mutable registry tags, are the reproducible deployment identity.
+
+### Failures and reserved numbers
+
+Reserved tags are retained even if CI, scanning, approval or publication fails. Beta numbers can therefore have gaps. Subsequent runs allocate a higher beta number. A failed Production reservation also consumes its stable version; do not delete/move the tag to hide a failure. Inspect the run and choose a new version, or explicitly authorize recovery of a failed job within the same run when its artifacts are still valid. Existing versioned releases/images are never overwritten during recovery.
+
+Plan artifacts are retained for 90 days and scanned image archives for seven days; annotated tags preserve the source/run trace after artifact expiry. A source-branch advance during validation or approval deliberately aborts publication. Retry as a new release with the current branch HEAD and a new version reservation. Partial uploads may leave a version image without a moving alias or GitHub Release: the summary/logs make that failure visible, and it requires explicit review rather than silent reuse.
 
 ### Required repository settings and permissions
 
-A repository administrator must configure:
+A repository administrator must:
 
-1. Protect `main` with human review and the aggregate CI **`ready`** check; see [dependency maintenance](DEPENDENCIES.md). Restrict changes to release policy/workflows to trusted reviewers. Codex works only on `work` and never modifies `main`.
-2. Protect creation, updates and deletion of `v*` tags. Permit intended tag creation by the release workflow's `GITHUB_TOKEN` (or its GitHub Actions integration) without granting bypass for tag updates/deletion. If rules disallow that integration, manual publication fails closed: adjust the reviewed rules, do not add a broad PAT or bypass validation.
-3. Create **`beta`** and **`production`** GitHub Environments. Add required human reviewers, enable **Prevent self-review**, and disable **Allow administrators to bypass configured protection rules**. The workflow checks all three settings before CI and again after approval; missing settings or API permission failures block release.
-4. Restrict beta deployment refs to `work` and intentional beta version tags; restrict production refs to `main` and intentional stable version tags. Use selected branch/tag rules appropriate to the repository. The workflow additionally validates strict version syntax and source ancestry; GitHub's glob patterns alone do not enforce SemVer.
-5. Enable Actions and allow the repository's token to write its GHCR package. Link the package to this repository and inherit access. Make it public for anonymous deployment pulls, or use a pull-only credential on deployment hosts. Keep Dependabot alerts/security updates enabled.
+- Make this manual workflow available on the **default branch** before GitHub shows **Run workflow**. Codex updates only `work`; a maintainer performs any review/merge to `main` separately.
+- Protect `main` with human review and require CI **`ready`**; see [dependency maintenance](DEPENDENCIES.md). Restrict release-policy changes and dispatch rights to trusted maintainers.
+- Protect `v*` tag updates/deletion while allowing the repository's GitHub Actions integration to create new version tags. Reservation uses `GITHUB_TOKEN`, so creating the tag does not recursively trigger other push workflows. It never writes an application branch.
+- Configure **beta** and **production** Environments with required human reviewers, **Prevent self-review** enabled, and **administrator bypass disabled**. Missing settings or inaccessible protection metadata fail closed. A GitHub plan supporting these protections is required.
+- Allow only trusted workflow-policy refs (typically `work` and `main`) in each Environment's deployment rules. These rules apply to the **workflow dispatch ref**, not the automatically resolved app source. Do not restrict production to the `main` workflow ref if operators should be able to select trusted `work` policy while releasing `main` app HEAD. Source enforcement is independent and handled by the release plan/rechecks.
+- Permit the Environment-gated publication job to write the repository-linked GHCR package. Restrict other image writers; make the package public for anonymous pulls or use pull-only deployment credentials. Do not enable automatic merge or unattended publishing.
 
-Global workflow permission is `contents: read`. Preflight also uses `actions: read` to inspect Environment settings. Reusable CI has read-only contents access and inherits no Environment secrets. Only the Environment-gated publication job receives `contents: write` (version tag and GitHub Release), `packages: write` (GHCR), and `actions: read` (protection recheck). Publication authenticates with the scoped `GITHUB_TOKEN`, not a broad personal token. Environments/rulesets require a GitHub plan that supports the required protections; an unsupported or incomplete setup is not silently accepted.
+Global permissions are `contents: read`. Preparation additionally has `contents: write` only to reserve the annotated version tag, plus `actions: read` for Environment checks; it has no GHCR write permission. CI has read-only repository access; build/scanning also has `actions: read` for the protection recheck, and has no package write permission. Only the approved publication job has `packages: write`, `contents: write` for the GitHub Release, and `actions: read` for protection rechecks. It authenticates with `GITHUB_TOKEN`, not a broad PAT. Artifact Actions use their scoped runtime credentials. The publication runner installs maintained Ubuntu Skopeo to upload OCI archives without a rebuild.
 
-The Actions **Run workflow** button becomes available only after a maintainer makes this `workflow_dispatch` definition available on the repository's default branch. Codex will not modify or merge that branch. Once available there, the operator can select `work` or `main` as described below.
+Valid input is a base `X.Y.Z` with no leading zeroes, `v`, prerelease suffix, whitespace or build metadata. Beta numbering is read from Git tags with pagination and integer-safe arithmetic, including failed reservations. Production uses exactly the base version.
 
-### Manually build and publish Beta
-
-After explicit user release authorization, an authorized maintainer opens **Actions → Release → Run workflow**:
-
-- Select workflow branch **`work`**.
-- Set `channel` to **`beta`**.
-- Set `version` without `v`, for example **`1.2.0-beta.1`**.
-- Set `source_sha` to the approved full lowercase 40-character commit SHA reachable from `work`.
-- Check `confirm_publish`, inspect the source/version in the run summary, and start the run.
-
-The workflow runs its release-policy tests, verifies the source SHA and unused tag, then runs complete reusable CI on that exact SHA. After CI passes, a different authorized reviewer approves the **beta** Environment job. Publication rechecks source/protections, builds or reuses a candidate, scans both platforms, creates the version tag, promotes the digest and creates a GitHub prerelease. Beta can only update `beta`; it cannot update `latest`.
-
-This publishes a Beta image; it is not merely a dry-run build. A validation-only build uses normal CI and must not be confused with approval to publish.
-
-### Manually publish Production
-
-After explicit user approval for the specific release, an authorized maintainer uses the same UI:
-
-- Select workflow branch **`main`**; running Production from the workflow on `work` is rejected.
-- Set `channel` to **`production`** and a stable version such as **`1.2.0`**.
-- Supply an approved full commit SHA reachable from `main` and check `confirm_publish`.
-- Inspect the pinned source/version, wait for fresh full CI, and obtain approval from a different **production** Environment reviewer.
-
-A commit existing in the repository or on `work` is insufficient: the API comparison must show that it is an ancestor of (or identical to) `main`. The build source is checked out separately from the workflow policy, and the same SHA is passed to CI, image labels and artifact lookup. Source and version checks run again after approval. Manual dispatch deliberately runs validation even if the selected development commit contains `[skip ci]`; that marker cannot skip the called release CI.
-
-### Tags, artifacts and failure handling
-
-| Trigger/channel                    | Required source              | Git tag / GitHub Release    | GHCR version and moving tags |
-| ---------------------------------- | ---------------------------- | --------------------------- | ---------------------------- |
-| Manual Beta / `v1.2.0-beta.1` push | Commit reachable from `work` | `v1.2.0-beta.1`, prerelease | `1.2.0-beta.1`, `beta`       |
-| Manual Production / `v1.2.0` push  | Commit reachable from `main` | `v1.2.0`, stable release    | `1.2.0`, `latest`            |
-
-Intentional version-tag pushes remain supported with the same validation and Environment approvals. Maintainers protect these tags and approve each release; ordinary pushes never trigger publication. `[skip ci]` can suppress push-triggered workflows, so use the explicit manual path for approved development commits with that marker. Manual release tags are created with `GITHUB_TOKEN`, which does not recursively start another tag workflow.
-
-Only stable SemVer and `-beta.N` versions are accepted; leading `v` in manual input, leading zeroes, build metadata and other prerelease suffixes are rejected. Manual runs require a new Git tag; tag-triggered runs must still point at the original source. Existing GitHub Releases and GHCR version tags are rejected instead of overwritten. Authentication, API and registry errors block publication.
-
-Candidate images use **`sha-<full source commit>`** and target `linux/amd64` and `linux/arm64` with OCI labels, SBOM and provenance. Candidates are created only after validation and explicit Environment approval, and both architectures are scanned for HIGH/CRITICAL vulnerabilities before version/channel promotion. A failed scan can leave an unpromoted SHA candidate; its existence does not establish release readiness. The digest recorded in release notes is the immutable deployment identity; GHCR tags are technically mutable and must be restricted to trusted release writers.
-
-When Beta and Production identify the same source commit, Production reuses and rescans the existing candidate rather than rebuilding it. OCI version metadata retains the original build version because promotion preserves the exact bytes. A new source SHA requires a new candidate. Global publication concurrency serializes the workflow's promotions. A partially failed publication may leave a reserved Git tag or image alias; inspect it manually with explicit authorization and use a new version rather than overwriting an existing version or bypassing uniqueness checks.
-
-Deployment and rollback use the root Compose file and a reviewed version or digest as described above; neither requires source checkout or rebuilding. Do not deploy an unpromoted candidate simply because it has a SHA tag.
-
-Codex development commits contain `[skip ci]` and go only to `origin/work`. Codex may manually publish a GitHub release or dispatch a workflow only when the user explicitly authorizes that specific action; this implementation task provides no such authorization. No unattended publishing, dispatch or automatic PR creation is permitted. See [AGENTS.md](../AGENTS.md).
+Deploy and roll back using the root Compose file and a reviewed version/digest as described above. No source checkout or rebuild is needed on deployment hosts. Workflow dispatch and image/release publication require a separate explicit user authorization; this implementation task performs neither. See [AGENTS.md](../AGENTS.md).
 
 ## Privacy and PDF limitations
 
