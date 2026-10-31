@@ -49,3 +49,30 @@ The migration maps small shadows to `shadow-xs` and focus outlines to `outline-h
 TypeScript 7 remains deferred until the stable lint toolchain supports it. Node 26 typings are intentionally excluded. The Tailwind 4 browser baseline is modern Chrome 111+, Safari 16.4+ and Firefox 128+; older browsers are not claimed as supported. Chromium screenshots do not establish Safari/Firefox rendering parity. Application logic, English/Norwegian translations, PDF.js and its matching worker are unchanged.
 
 Visual regression: 72 before/after Chromium states are pixel-identical on this Linux host: desktop/mobile, light/dark, English/Norwegian, empty upload, all seven tools with a shared PDF and open paper-size menus. Captures disable transitions/animations and normalize popup scroll position; PDF rendering is allowed to settle. The initial spacing difference was fixed, and screenshot-induced viewport/focus differences were removed from the harness. This is same-host visual parity, not a claim of identical cross-browser rendering or archive bytes.
+
+## Docker and Actions modernization
+
+The Node builder is updated to `24.22.1-alpine3.23` at the verified multi-platform index digest `sha256:0468540aa58203ff9e40c2aab3907c52644ab818af6176b1c70a026137dc92a2`. Nginx stays at current stable `1.30.6-alpine-slim` and its existing digest. Both base indexes advertise AMD64 and ARM64. Dependabot now leaves Nginx minor/channel changes for deliberate review rather than treating mainline 1.31 as a stable refresh; patch/security updates remain visible under the existing policy.
+
+All Action candidates were checked against their release notes and exact-commit `action.yml`/`action.yaml` inputs. Every supplied workflow input matches the pinned upstream schema. Current Actions run on Node 24 (Trivy is composite); the reviewed hosted-runner logs show runner 2.338.2, above the Node 24 minimum 2.327.1. These are deliberate wrapper major migrations and do not change the application's Node major.
+
+| Action                     | Updated stable version |
+| -------------------------- | ---------------------- |
+| actions/checkout           | v7.0.1                 |
+| actions/setup-node         | v7.1.0                 |
+| actions/setup-python       | v7.1.0                 |
+| actions/upload-artifact    | v7.0.2                 |
+| actions/download-artifact  | v8.0.2                 |
+| docker/setup-qemu-action   | v4.4.0                 |
+| docker/setup-buildx-action | v4.4.1                 |
+| docker/build-push-action   | v7.4.0                 |
+| docker/login-action        | v4.7.0                 |
+| aquasecurity/trivy-action  | v0.36.0                |
+
+Upload steps explicitly preserve zipped artifact transport (`archive: true`); downloads explicitly preserve extraction of that transport (`skip-decompress: false`). Named artifact paths and trusted SHA256 verification remain intact. Release Node setup disables automatic package-manager cache discovery; CI's explicit npm cache stays. Login retains normal Docker credentials for Skopeo rather than switching to Buildx-only scope. Checkout keeps credentials disabled and never opts into unsafe privileged PR checkout. The manual form, source pinning/rechecks, atomic reservations, full CI, both scans, approval Environments, permissions and moving-tag separation are unchanged. Trivy 0.76.1 is explicitly selected in CI and releases, avoiding a scanner downgrade to the updated wrapper's older default.
+
+Docker/local parity checks also identified Tailwind's automatic discovery of different build-context files. Explicit CSS source directives now retain the original `src/` and `index.html` scope, independent of Docker's ignored scripts/tests. This preserves consistent generated application CSS.
+
+Targeted workflow validation passes actionlint, 38 release-policy tests and 32 engine tests (one Windows-only skip). No workflow is dispatched. Upstream Action updates include dependency/security fixes and safer metadata-log handling; no application npm advisory existed at baseline, so none is claimed as newly remediated. Existing security overrides and scan severity gates remain intact.
+
+The final scoped frontend still matches all 72 baseline screenshots pixel-for-pixel. Native AMD64 multi-stage Docker build, startup/health, UID 101, read-only assets, security headers, SPA fallback and worker MIME checks pass. Docker and local Vite emit the same CSS asset hash. Trivy's official GHCR database reports zero HIGH/CRITICAL runtime findings. An intermediate rebuild exhausted the managed filesystem; pruning unused BuildKit cache allowed the final build to complete. No dependency/scan gate was bypassed. ARM64 base manifests are verified; ARM64 runtime and real hosted Actions execution remain external checks.

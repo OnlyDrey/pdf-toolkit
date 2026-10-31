@@ -16,7 +16,7 @@ The previous CI ran the Docker build, scan, browser installation and desktop/mob
 
 For a Dependabot-authored PR, the container/browser job waits for a maintainer to apply the `dependencies:validate` label after reviewing the diff. The `labeled` event starts normal validation for that approval. Label events also run the smaller code/readiness checks; concurrency cancels redundant runs on the same ref. The aggregate check is never skipped, since a skipped required check can otherwise count as success. Subsequent changes to an approved PR rerun all checks. Other PR authors and branch pushes retain full validation. Release callers explicitly force the full suite on their pinned source SHA, so bot/label cost controls cannot skip a release gate.
 
-The aggregate `ready` check fails until both code and container/browser jobs succeed. Administrators must require **`ready`** in branch protection and require maintainer review. Requiring only a skipped container check is unsafe because GitHub can consider skipped checks successful. No `pull_request_target`, write-enabled PR token, automatic label approval or automatic merge is used. The small aggregate job adds a short runner invocation but avoids repeatedly building containers before a bot update has been reviewed.
+The aggregate `ready` check fails until code, cross-platform release-engine and container/browser jobs succeed. Administrators must require **`ready`** in branch protection and require maintainer review. Requiring only a skipped container check is unsafe because GitHub can consider skipped checks successful. No `pull_request_target`, write-enabled PR token, automatic label approval or automatic merge is used. The small aggregate job adds a short runner invocation but avoids repeatedly building containers before a bot update has been reviewed.
 
 Maintainer procedure:
 
@@ -28,3 +28,5 @@ Maintainer procedure:
 An alternative is to run all checks on every bot update; it offers immediate feedback but uses more minutes. Skipping all bot CI, adding `[skip ci]` to bot PRs, or trusting a skipped Docker check would cost less but removes useful safeguards and is not recommended.
 
 This task changes configuration and runs local checks only. It does not dispatch Actions, apply approval labels, change repository settings or consume Actions minutes.
+
+The [2026-10-31 modernization review](MODERNIZATION.md) records current pins, major-upgrade decisions, failed-check diagnoses and local validation. Node remains on 24 LTS; typings track 24.x. Nginx routine updates stay within the reviewed stable minor line; evaluate new stable lines manually so an odd-numbered mainline release cannot enter a grouped routine update.

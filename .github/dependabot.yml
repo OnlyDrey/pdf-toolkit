@@ -59,6 +59,9 @@ updates:
     ignore:
       - dependency-name: '*'
         update-types: [version-update:semver-major]
+      # Keep the supported stable Nginx line; mainline/stable channel changes need review.
+      - dependency-name: nginx/nginx-unprivileged
+        update-types: [version-update:semver-minor]
     groups:
       compatible-images:
         applies-to: version-updates
