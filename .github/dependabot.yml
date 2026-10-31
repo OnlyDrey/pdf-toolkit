@@ -1,10 +1,10 @@
 version: 2
 updates:
   - package-ecosystem: npm
-    directory: /
+    directory: /app
     schedule: { interval: weekly }
   - package-ecosystem: docker
-    directory: /
+    directory: /app
     schedule: { interval: weekly }
   - package-ecosystem: github-actions
     directory: /

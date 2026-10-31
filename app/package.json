@@ -11,8 +11,8 @@
     "test:run": "vitest run src",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.node.json --noEmit",
     "lint": "eslint . --max-warnings 0",
-    "format": "prettier --write .",
-    "format:check": "prettier --check .",
+    "format": "prettier --config .prettierrc.json --ignore-path .prettierignore --write . ../.github ../docs ../AGENTS.md ../compose.yaml ../README.md",
+    "format:check": "prettier --config .prettierrc.json --ignore-path .prettierignore --check . ../.github ../docs ../AGENTS.md ../compose.yaml ../README.md",
     "test:e2e": "playwright test"
   },
   "dependencies": {

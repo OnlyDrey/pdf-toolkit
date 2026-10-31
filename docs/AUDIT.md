@@ -9,3 +9,7 @@ Dependencies are locked to stable versions. React 19, Vite 8, Vitest 5 and PDF.j
 Large documents still require browser memory proportional to document size. pdf-lib mutations execute on the UI thread; a Web Worker rewrite is outside this modernization. Previews are bounded and only active tools render. Digital signatures may be invalidated by mutation. Crop hides content; it is not redaction. Header edits do not convert PDF features or establish conformance.
 
 Release governance requires repository configuration: protect main and version tags, configure beta/production environments with required reviewers, and restrict production to stable tags. Workflow files cannot install repository protection rules themselves.
+
+## Repository organization
+
+Application sources, tests, scripts and tooling live together in `app/`. Production deployment uses root `compose.yaml`, which only consumes a registry image. Local builds use `app/compose.local.yaml`. CI run steps execute from `app/`, Docker actions build `./app`, npm caches use `app/package-lock.json`, and Dependabot monitors `/app` for npm and Docker updates. Formatting also covers the repository guides and automation. No dependency versions or UI behavior changed during the structure cleanup.

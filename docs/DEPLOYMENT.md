@@ -2,18 +2,17 @@
 
 ## Run a published image
 
-No checkout, Node or build is required on deployment hosts. Install Docker Engine and Compose, save the following as `compose.yml`, and run `docker compose pull && docker compose up -d`:
+No checkout, Node or build is required on deployment hosts. Install Docker Engine and Compose, download [compose.yaml](../compose.yaml) into an empty deployment directory, then run:
 
-```yaml
-services:
-  pdf-toolkit:
-    image: ${PDF_TOOLKIT_IMAGE:-ghcr.io/onlydrey/pdf-toolkit:latest}
-    ports: ['8080:8080']
-    read_only: true
-    tmpfs: ['/tmp:rw,noexec,nosuid,size=64m,uid=101,gid=101']
-    cap_drop: [ALL]
-    security_opt: [no-new-privileges:true]
-    restart: unless-stopped
+```sh
+docker compose pull
+docker compose up -d
+```
+
+The default is the stable `latest` image. To deploy beta directly:
+
+```sh
+PDF_TOOLKIT_IMAGE=ghcr.io/onlydrey/pdf-toolkit:beta docker compose up -d --pull always
 ```
 
 For beta, set `PDF_TOOLKIT_IMAGE=ghcr.io/onlydrey/pdf-toolkit:beta` in `.env`. For stable, prefer an explicit version such as `ghcr.io/onlydrey/pdf-toolkit:1.2.0`, or preferably `ghcr.io/onlydrey/pdf-toolkit@sha256:<digest>` from its release notes. These are examples, not a claim that those releases exist. Make the GHCR package public for anonymous pulls, or authenticate with a credential restricted to package reads.
@@ -30,12 +29,20 @@ To roll back, restore the previous image digest and run the same pull/up command
 
 ## Local development and container verification
 
-Use Node 24 LTS, `npm ci`, then `npm run dev`. Run `npm run build` for static production assets. For a local image:
+All application commands run inside `app/`. Use Node 24 LTS:
 
 ```sh
-docker compose -f docker-compose.yml -f compose.local.yml up --build
-docker build -t pdf-toolkit:verify .
-scripts/test-container.sh
+cd app
+npm ci
+npm run dev
+```
+
+Run `npm run build` there for static production assets. From the repository root, local container commands are:
+
+```sh
+docker compose -f app/compose.local.yaml up --build
+docker build -t pdf-toolkit:verify app
+app/scripts/test-container.sh
 ```
 
 In a managed build environment that requires an extra CA, pass `--secret id=proxy_ca,src="$CODEX_PROXY_CERT"` to `docker build`. It is mounted only during dependency installation. Normal builds do not need this secret.
@@ -61,4 +68,14 @@ When stable and beta tags identify the same commit, stable promotion reuses the 
 
 Buildx attaches SBOM and provenance where supported. OCI labels record repository, source revision, original build version and license. Release notes record the promoted digest. Builds/actions/base images are pinned and Dependabot proposes updates. CI runs dependency audits and native-image scanning; release scans apply again before promotion. Review all dependency/base-image update PRs and do not bypass a failed vulnerability gate.
 
-No official release has been authorized by the implementation request. Do not push release tags until the repository protections are configured and the release is explicitly approved. Publication, external CI and cross-platform runtime behavior must be verified by their actual runs.
+Routine Codex work is restricted to `work`, with `[skip ci]` in every new commit and pushes exclusively to `origin/work`; see [AGENTS.md](../AGENTS.md). Do not manually dispatch Actions, create PRs automatically, or publish images, packages or releases as part of development tasks. No official release has been authorized by this cleanup request. Do not push release tags until the repository protections are configured and the release is explicitly approved. Publication, external CI and cross-platform runtime behavior must be verified by their actual runs.
+
+## Privacy and PDF limitations
+
+Documents are processed in browser memory, with no upload API or telemetry. Only theme and language preferences persist locally. Refreshing or closing the page loses working files. Offline use requires the page and assets to remain available; no service-worker installation is provided.
+
+Inputs are limited to 100 MiB per document or combined merge input. Memory use can be several times the source size, and pdf-lib mutations may pause the UI. Thumbnail grids share one PDF.js document/worker per file; only the active tool renders previews, with at most 12 Extract thumbnails and bounded canvas height.
+
+Malformed, empty, unsupported and encrypted PDFs report errors. Decrypt a copy locally first. Complex forms, annotations, unusual fonts and signatures need manual reader checks; modifications can invalidate digital signatures. Structural compression does not reduce image quality and may yield little improvement. It reports the actual candidate size and retains the original bytes when the rewrite is not smaller.
+
+Crop changes the visible crop box in unrotated PDF coordinates; hidden content stays in the file. **Crop is not redaction.** Version Fix changes only the header's three version characters, checks the document and catalog version, and blocks downgrades. It does not convert features or establish reader compatibility or PDF/A conformance.
