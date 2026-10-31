@@ -1,3 +1,6 @@
+import { useActiveTool } from '@/lib/active-tool-context'
+import { useTranslation } from 'react-i18next'
+import { MAX_PDF_BYTES } from '@/lib/pdf-document'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import {
   getDocument,
@@ -44,12 +47,15 @@ export function PdfPagePreview({
   onDimensions,
   children,
 }: PdfPagePreviewProps) {
+  const active = useActiveTool()
+  const { t } = useTranslation()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
   const [ready, setReady] = useState(false)
 
   useEffect(() => {
+    if (!active) return
     let cancelled = false
     let task: PDFDocumentLoadingTask | undefined
     let render: RenderTask | undefined
@@ -59,6 +65,7 @@ export function PdfPagePreview({
 
     ;(async () => {
       try {
+        if (file.size > MAX_PDF_BYTES) throw new Error('tooLarge')
         const buf = await file.arrayBuffer()
         if (cancelled) return
         task = getDocument({ data: new Uint8Array(buf) })
@@ -74,7 +81,7 @@ export function PdfPagePreview({
         }
 
         const rawVP = page.getViewport({ scale: 1 })
-        const scale = maxWidth / rawVP.width
+        const scale = Math.min(maxWidth / rawVP.width, 800 / rawVP.height)
         const vp = page.getViewport({ scale })
 
         const canvas = canvasRef.current
@@ -116,9 +123,14 @@ export function PdfPagePreview({
       render?.cancel()
       void task?.destroy()
     }
-  }, [file, pageNumber, maxWidth, onDimensions])
+  }, [file, pageNumber, maxWidth, onDimensions, active])
 
-  if (error) return null
+  if (error)
+    return (
+      <p role="status" className="text-xs text-muted-foreground">
+        {t('common.previewUnavailable')}
+      </p>
+    )
 
   return (
     <div

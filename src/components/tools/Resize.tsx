@@ -1,4 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useActiveTool } from '@/lib/active-tool-context'
+import { loadPdf, PdfInputError } from '@/lib/pdf-document'
+import { useState, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   Maximize2,
@@ -7,7 +9,7 @@ import {
   ArrowRight,
   Download,
 } from 'lucide-react'
-import { PDFDocument, degrees } from 'pdf-lib'
+import { resizePages } from '@/lib/pdf-operations'
 import {
   Card,
   CardContent,
@@ -61,6 +63,8 @@ const MM2PT = 2.8346
 
 export function Resize() {
   const { t } = useTranslation()
+  const active = useActiveTool()
+  const lastOutput = useRef<Uint8Array | null>(null)
   const { session, setSession } = useSession()
   const [file, setFile] = useState<File | null>(null)
   const [ffs, setFfs] = useState(false)
@@ -76,6 +80,7 @@ export function Resize() {
   const sz = paperSizes.find((s) => s.id === sizeId) ?? paperSizes[3]
 
   useEffect(() => {
+    if (!active || (session && session.bytes === lastOutput.current)) return
     if (session && (!file || ffs)) {
       setFile(
         new File([new Uint8Array(session.bytes)], session.name, {
@@ -93,7 +98,7 @@ export function Resize() {
       setFfs(false)
       setDims(null)
     }
-  }, [session])
+  }, [session, active])
 
   const handleFile = (files: File[]) => {
     setFile(files[0])
@@ -111,33 +116,26 @@ export function Resize() {
     setError(null)
     setDone(false)
     try {
-      const doc = await PDFDocument.load(await readFileAsArrayBuffer(file))
+      const doc = await loadPdf(await readFileAsArrayBuffer(file))
       const { width: nW, height: nH } = getPt(sz, orient)
-      for (const page of doc.getPages()) {
-        if (scale) {
-          const ang = page.getRotation().angle,
-            rot = ang === 90 || ang === 270
-          const { width: rW, height: rH } = page.getSize()
-          const cW = rot ? rH : rW,
-            cH = rot ? rW : rH,
-            sc = Math.min(nW / cW, nH / cH)
-          page.scaleContent(sc, sc)
-          page.translateContent(
-            (nW - cW * sc) / (2 * sc),
-            (nH - cH * sc) / (2 * sc),
-          )
-        }
-        page.setSize(nW, nH)
-        page.setRotation(degrees(0))
-      }
+      resizePages(doc, nW, nH, scale)
       const pdfBytes = await doc.save()
       const name = `${file.name.replace(/\.pdf$/i, '')}_${sz.id}.pdf`
+      lastOutput.current = pdfBytes
       setSession(pdfBytes, name)
+      setFile(
+        new File([new Uint8Array(pdfBytes)], name, { type: 'application/pdf' }),
+      )
+      setFfs(true)
       setOutBytes(pdfBytes)
       setOutName(name)
       setDone(true)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Unknown error')
+      setError(
+        e instanceof PdfInputError
+          ? t(`errors.${e.code}`)
+          : t('errors.processing'),
+      )
     } finally {
       setProcessing(false)
     }
@@ -295,13 +293,19 @@ export function Resize() {
             </>
           )}
           {error && (
-            <div className="flex items-center gap-2 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            <div
+              role="alert"
+              className="flex items-center gap-2 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive"
+            >
               <AlertCircle className="h-4 w-4 shrink-0" />
               {error}
             </div>
           )}
           {done && (
-            <div className="flex items-center gap-2 rounded-md bg-green-500/10 px-3 py-2 text-sm text-green-700 dark:text-green-400">
+            <div
+              role="status"
+              className="flex items-center gap-2 rounded-md bg-green-500/10 px-3 py-2 text-sm text-green-700 dark:text-green-400"
+            >
               <CheckCircle2 className="h-4 w-4 shrink-0" />
               {t('common.appliedToSession')}
             </div>

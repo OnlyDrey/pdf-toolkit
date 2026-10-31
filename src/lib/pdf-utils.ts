@@ -1,4 +1,6 @@
+import { MAX_PDF_BYTES, PdfInputError } from './pdf-document'
 export async function readFileAsArrayBuffer(file: File): Promise<ArrayBuffer> {
+  if (file.size > MAX_PDF_BYTES) throw new PdfInputError('tooLarge')
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
     reader.onload = () => resolve(reader.result as ArrayBuffer)
@@ -30,6 +32,8 @@ export function parsePageRange(input: string, totalPages: number): number[] {
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean)
+  if (parts.length === 0 || input.split(',').some((part) => !part.trim()))
+    throw new Error('Invalid page range segment')
   const pages = new Set<number>()
   for (const part of parts) {
     if (/^\d+$/.test(part)) {

@@ -1,3 +1,5 @@
+import { useSession } from '@/lib/session-context'
+import { loadPdf, PdfInputError, MAX_PDF_BYTES } from '@/lib/pdf-document'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
@@ -36,11 +38,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { FileDropZone } from './FileDropZone'
-import {
-  readFileAsArrayBuffer,
-  formatFileSize,
-  downloadBlob,
-} from '@/lib/pdf-utils'
+import { readFileAsArrayBuffer, formatFileSize } from '@/lib/pdf-utils'
 
 interface PdfEntry {
   id: string
@@ -54,6 +52,7 @@ function SortableItem({
   entry: PdfEntry
   onRemove: (id: string) => void
 }) {
+  const { t } = useTranslation()
   const {
     attributes,
     listeners,
@@ -74,6 +73,7 @@ function SortableItem({
     >
       <button
         type="button"
+        aria-label={t('tools.merge.reorder') + ': ' + entry.file.name}
         {...attributes}
         {...listeners}
         className="cursor-grab touch-none text-muted-foreground hover:text-foreground active:cursor-grabbing"
@@ -88,6 +88,7 @@ function SortableItem({
       </div>
       <button
         type="button"
+        aria-label={t('common.remove') + ': ' + entry.file.name}
         onClick={() => onRemove(entry.id)}
         className="text-muted-foreground hover:text-destructive"
       >
@@ -99,6 +100,7 @@ function SortableItem({
 
 export function Merge() {
   const { t } = useTranslation()
+  const { setSession } = useSession()
   const [entries, setEntries] = useState<PdfEntry[]>([])
   const [processing, setProcessing] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -140,21 +142,22 @@ export function Merge() {
     setError(null)
     setDone(false)
     try {
+      if (entries.reduce((sum, e) => sum + e.file.size, 0) > MAX_PDF_BYTES)
+        throw new PdfInputError('tooLarge')
       const merged = await PDFDocument.create()
       for (const e of entries) {
-        const doc = await PDFDocument.load(await readFileAsArrayBuffer(e.file))
+        const doc = await loadPdf(await readFileAsArrayBuffer(e.file))
         const pages = await merged.copyPages(doc, doc.getPageIndices())
         pages.forEach((p) => merged.addPage(p))
       }
-      downloadBlob(
-        new Blob([new Uint8Array(await merged.save())], {
-          type: 'application/pdf',
-        }),
-        'merged.pdf',
-      )
+      setSession(await merged.save(), 'merged.pdf')
       setDone(true)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Unknown error')
+      setError(
+        e instanceof PdfInputError
+          ? t(`errors.${e.code}`)
+          : t('errors.processing'),
+      )
     } finally {
       setProcessing(false)
     }
@@ -218,7 +221,10 @@ export function Merge() {
             </p>
           )}
           {error && (
-            <div className="flex items-center gap-2 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            <div
+              role="alert"
+              className="flex items-center gap-2 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive"
+            >
               <AlertCircle className="h-4 w-4 shrink-0" />
               {error}
             </div>
@@ -226,7 +232,7 @@ export function Merge() {
           {done && (
             <div className="flex items-center gap-2 rounded-md bg-green-500/10 px-3 py-2 text-sm text-green-700 dark:text-green-400">
               <CheckCircle2 className="h-4 w-4 shrink-0" />
-              {t('common.done')}
+              {t('common.appliedToSession')}
             </div>
           )}
           <div className="flex gap-2">

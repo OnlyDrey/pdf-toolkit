@@ -1,3 +1,5 @@
+import { useActiveTool } from '@/lib/active-tool-context'
+import { loadPdf, PdfInputError } from '@/lib/pdf-document'
 import { useState, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Scissors, AlertCircle, CheckCircle2, Download } from 'lucide-react'
@@ -29,6 +31,8 @@ const MAX_PREVIEW = 12
 
 export function Extract() {
   const { t } = useTranslation()
+  const active = useActiveTool()
+  const lastOutput = useRef<Uint8Array | null>(null)
   const { session, setSession } = useSession()
   const [file, setFile] = useState<File | null>(null)
   const [ffs, setFfs] = useState(false)
@@ -40,9 +44,12 @@ export function Extract() {
   const [done, setDone] = useState(false)
   const [outBytes, setOutBytes] = useState<Uint8Array | null>(null)
   const [outName, setOutName] = useState('')
+  const loadGeneration = useRef(0)
   const bufRef = useRef<ArrayBuffer | null>(null)
 
   const loadFile = async (f: File, fromSession = false) => {
+    const generation = ++loadGeneration.current
+    setTotalPages(null)
     setFile(f)
     setFfs(fromSession)
     setDone(false)
@@ -54,15 +61,23 @@ export function Extract() {
     bufRef.current = null
     try {
       const buf = await readFileAsArrayBuffer(f)
+      const doc = await loadPdf(buf)
+      if (generation !== loadGeneration.current) return
       bufRef.current = buf
-      setTotalPages((await PDFDocument.load(buf)).getPageCount())
+      setTotalPages(doc.getPageCount())
     } catch (e) {
+      if (generation !== loadGeneration.current) return
       setTotalPages(null)
-      setError(e instanceof Error ? e.message : 'Failed to read PDF.')
+      setError(
+        e instanceof PdfInputError
+          ? t(`errors.${e.code}`)
+          : t('errors.processing'),
+      )
     }
   }
 
   useEffect(() => {
+    if (!active || (session && session.bytes === lastOutput.current)) return
     if (session && (!file || ffs)) {
       loadFile(
         new File([new Uint8Array(session.bytes)], session.name, {
@@ -76,7 +91,7 @@ export function Extract() {
       setTotalPages(null)
       bufRef.current = null
     }
-  }, [session])
+  }, [session, active])
 
   const handleFile = (files: File[]) => loadFile(files[0], false)
 
@@ -113,20 +128,33 @@ export function Extract() {
     setError(null)
     setDone(false)
     try {
-      const indices = Array.from(selected).sort((a, b) => a - b)
+      const indices = parsePageRange(inputVal, totalPages)
       if (!indices.length) throw new Error('No pages selected.')
       const buf = bufRef.current ?? (await readFileAsArrayBuffer(file))
-      const src = await PDFDocument.load(buf),
+      const src = await loadPdf(buf),
         dst = await PDFDocument.create()
       ;(await dst.copyPages(src, indices)).forEach((p) => dst.addPage(p))
       const pdfBytes = await dst.save()
       const name = `${file.name.replace(/\.pdf$/i, '')}_extracted.pdf`
+      lastOutput.current = pdfBytes
       setSession(pdfBytes, name)
+      setFile(
+        new File([new Uint8Array(pdfBytes)], name, { type: 'application/pdf' }),
+      )
+      setFfs(true)
+      bufRef.current = new Uint8Array(pdfBytes).buffer
+      setTotalPages(indices.length)
+      setSelected(new Set(indices.map((_, index) => index)))
+      setInputVal(indices.map((_, index) => index + 1).join(','))
       setOutBytes(pdfBytes)
       setOutName(name)
       setDone(true)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Unknown error')
+      setError(
+        e instanceof PdfInputError
+          ? t(`errors.${e.code}`)
+          : t('errors.processing'),
+      )
     } finally {
       setProcessing(false)
     }
@@ -211,7 +239,7 @@ export function Extract() {
                       <button
                         key={i}
                         type="button"
-                        aria-label={`Page ${i + 1}${isSel ? ' (selected)' : ''}`}
+                        aria-label={t('common.pageLabel', { page: i + 1 })}
                         aria-pressed={isSel}
                         onClick={() => togglePage(i)}
                         className={cn(
@@ -275,13 +303,19 @@ export function Extract() {
             </>
           )}
           {error && (
-            <div className="flex items-center gap-2 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            <div
+              role="alert"
+              className="flex items-center gap-2 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive"
+            >
               <AlertCircle className="h-4 w-4 shrink-0" />
               {error}
             </div>
           )}
           {done && (
-            <div className="flex items-center gap-2 rounded-md bg-green-500/10 px-3 py-2 text-sm text-green-700 dark:text-green-400">
+            <div
+              role="status"
+              className="flex items-center gap-2 rounded-md bg-green-500/10 px-3 py-2 text-sm text-green-700 dark:text-green-400"
+            >
               <CheckCircle2 className="h-4 w-4 shrink-0" />
               {t('common.appliedToSession')}
             </div>

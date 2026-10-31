@@ -1,4 +1,10 @@
-import { useState, useEffect } from 'react'
+import { useActiveTool } from '@/lib/active-tool-context'
+import {
+  detectVersion,
+  rewriteVersion,
+  PdfInputError,
+} from '@/lib/pdf-document'
+import { useState, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { FileText, AlertCircle, CheckCircle2, Download } from 'lucide-react'
 import {
@@ -40,34 +46,10 @@ const PDF_VERSIONS = [
 ] as const
 type PdfVersion = (typeof PDF_VERSIONS)[number]
 
-function detectVersion(b: Uint8Array) {
-  const h = new TextDecoder('ascii', { fatal: false }).decode(b.slice(0, 1024))
-  const m = h.match(/%PDF-(\d+\.\d+)/)
-  return m ? m[1] : null
-}
-function rewriteVersion(bytes: Uint8Array, tv: PdfVersion): Uint8Array | null {
-  const enc = new TextEncoder(),
-    tgt = enc.encode(`%PDF-${tv}`),
-    srch = enc.encode('%PDF-')
-  const lim = Math.min(bytes.length, 1024)
-  for (let i = 0; i < lim - 4; i++) {
-    if (
-      bytes[i] === srch[0] &&
-      bytes[i + 1] === srch[1] &&
-      bytes[i + 2] === srch[2] &&
-      bytes[i + 3] === srch[3] &&
-      bytes[i + 4] === srch[4]
-    ) {
-      const p = new Uint8Array(bytes)
-      for (let j = 0; j < tgt.length; j++) p[i + j] = tgt[j]
-      return p
-    }
-  }
-  return null
-}
-
 export function VersionFix() {
   const { t } = useTranslation()
+  const active = useActiveTool()
+  const lastOutput = useRef<Uint8Array | null>(null)
   const { session, setSession } = useSession()
   const [file, setFile] = useState<File | null>(null)
   const [ffs, setFfs] = useState(false)
@@ -89,6 +71,7 @@ export function VersionFix() {
   }
 
   useEffect(() => {
+    if (!active || (session && session.bytes === lastOutput.current)) return
     if (session && (!file || ffs)) {
       const f = new File([new Uint8Array(session.bytes)], session.name, {
         type: 'application/pdf',
@@ -105,7 +88,7 @@ export function VersionFix() {
       setFfs(false)
       setDetected(null)
     }
-  }, [session])
+  }, [session, active])
 
   const handleFile = async (files: File[]) => {
     const f = files[0]
@@ -125,18 +108,24 @@ export function VersionFix() {
     setDone(false)
     try {
       const buf = await readFileAsArrayBuffer(file)
-      const patched = rewriteVersion(new Uint8Array(buf), targetVersion)
-      if (!patched) {
-        setError('Could not find the PDF header (%PDF-) in this file.')
-        return
-      }
+      const patched = await rewriteVersion(new Uint8Array(buf), targetVersion)
       const name = `${file.name.replace(/\.pdf$/i, '')}_v${targetVersion}.pdf`
+      lastOutput.current = patched
       setSession(patched, name)
+      setFile(
+        new File([new Uint8Array(patched)], name, { type: 'application/pdf' }),
+      )
+      setFfs(true)
+      setDetected(targetVersion)
       setOutBytes(patched)
       setOutName(name)
       setDone(true)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Unknown error')
+      setError(
+        e instanceof PdfInputError
+          ? t(`errors.${e.code}`)
+          : t('errors.processing'),
+      )
     } finally {
       setProcessing(false)
     }
@@ -172,6 +161,9 @@ export function VersionFix() {
           <CardDescription>{t('tools.versionFix.description')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
+          <p className="text-sm text-muted-foreground">
+            {t('tools.versionFix.note')}
+          </p>
           <FileDropZone
             onFiles={handleFile}
             hasFile={!!file}
@@ -232,13 +224,19 @@ export function VersionFix() {
             </>
           )}
           {error && (
-            <div className="flex items-center gap-2 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            <div
+              role="alert"
+              className="flex items-center gap-2 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive"
+            >
               <AlertCircle className="h-4 w-4 shrink-0" />
               {error}
             </div>
           )}
           {done && (
-            <div className="flex items-center gap-2 rounded-md bg-green-500/10 px-3 py-2 text-sm text-green-700 dark:text-green-400">
+            <div
+              role="status"
+              className="flex items-center gap-2 rounded-md bg-green-500/10 px-3 py-2 text-sm text-green-700 dark:text-green-400"
+            >
               <CheckCircle2 className="h-4 w-4 shrink-0" />
               {t('common.appliedToSession')}
             </div>

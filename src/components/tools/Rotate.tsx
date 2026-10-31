@@ -1,7 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useActiveTool } from '@/lib/active-tool-context'
+import { loadPdf, PdfInputError } from '@/lib/pdf-document'
+import { useState, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { RotateCw, AlertCircle, CheckCircle2, Download } from 'lucide-react'
-import { PDFDocument, degrees } from 'pdf-lib'
+import { rotatePages } from '@/lib/pdf-operations'
 import {
   Card,
   CardContent,
@@ -35,6 +37,8 @@ type PageSelection = 'all' | 'range'
 
 export function Rotate() {
   const { t } = useTranslation()
+  const active = useActiveTool()
+  const lastOutput = useRef<Uint8Array | null>(null)
   const { session, setSession } = useSession()
   const [file, setFile] = useState<File | null>(null)
   const [ffs, setFfs] = useState(false)
@@ -48,6 +52,7 @@ export function Rotate() {
   const [outName, setOutName] = useState('')
 
   useEffect(() => {
+    if (!active || (session && session.bytes === lastOutput.current)) return
     if (session && (!file || ffs)) {
       setFile(
         new File([new Uint8Array(session.bytes)], session.name, {
@@ -63,7 +68,7 @@ export function Rotate() {
       setFile(null)
       setFfs(false)
     }
-  }, [session])
+  }, [session, active])
 
   const handleFile = (files: File[]) => {
     setFile(files[0])
@@ -80,25 +85,31 @@ export function Rotate() {
     setError(null)
     setDone(false)
     try {
-      const doc = await PDFDocument.load(await readFileAsArrayBuffer(file))
+      const doc = await loadPdf(await readFileAsArrayBuffer(file))
       const pages = doc.getPages()
       const indices =
         pageSel === 'all'
           ? pages.map((_, i) => i)
           : parsePageRange(rangeInput, doc.getPageCount())
       const rot = parseInt(angle, 10)
-      for (const idx of indices) {
-        const p = pages[idx]
-        p.setRotation(degrees((p.getRotation().angle + rot) % 360))
-      }
+      rotatePages(doc, indices, rot)
       const pdfBytes = await doc.save()
       const name = `${file.name.replace(/\.pdf$/i, '')}_rotated.pdf`
+      lastOutput.current = pdfBytes
       setSession(pdfBytes, name)
+      setFile(
+        new File([new Uint8Array(pdfBytes)], name, { type: 'application/pdf' }),
+      )
+      setFfs(true)
       setOutBytes(pdfBytes)
       setOutName(name)
       setDone(true)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Unknown error')
+      setError(
+        e instanceof PdfInputError
+          ? t(`errors.${e.code}`)
+          : t('errors.processing'),
+      )
     } finally {
       setProcessing(false)
     }
@@ -226,13 +237,19 @@ export function Rotate() {
             </>
           )}
           {error && (
-            <div className="flex items-center gap-2 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            <div
+              role="alert"
+              className="flex items-center gap-2 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive"
+            >
               <AlertCircle className="h-4 w-4 shrink-0" />
               {error}
             </div>
           )}
           {done && (
-            <div className="flex items-center gap-2 rounded-md bg-green-500/10 px-3 py-2 text-sm text-green-700 dark:text-green-400">
+            <div
+              role="status"
+              className="flex items-center gap-2 rounded-md bg-green-500/10 px-3 py-2 text-sm text-green-700 dark:text-green-400"
+            >
               <CheckCircle2 className="h-4 w-4 shrink-0" />
               {t('common.appliedToSession')}
             </div>

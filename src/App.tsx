@@ -1,3 +1,4 @@
+import { ActiveToolContext } from '@/lib/active-tool-context'
 import { useState, useCallback } from 'react'
 import { ThemeProvider } from '@/components/layout/ThemeProvider'
 import { Header } from '@/components/layout/Header'
@@ -29,25 +30,39 @@ export default function App() {
           <SessionBar />
           <main className="mx-auto max-w-5xl px-4 py-8">
             <div className={activeTab === 'merge' ? '' : 'hidden'}>
-              <Merge />
+              <ActiveToolContext.Provider value={activeTab === 'merge'}>
+                <Merge />
+              </ActiveToolContext.Provider>
             </div>
             <div className={activeTab === 'compress' ? '' : 'hidden'}>
-              <Compress />
+              <ActiveToolContext.Provider value={activeTab === 'compress'}>
+                <Compress />
+              </ActiveToolContext.Provider>
             </div>
             <div className={activeTab === 'extract' ? '' : 'hidden'}>
-              <Extract />
+              <ActiveToolContext.Provider value={activeTab === 'extract'}>
+                <Extract />
+              </ActiveToolContext.Provider>
             </div>
             <div className={activeTab === 'rotate' ? '' : 'hidden'}>
-              <Rotate />
+              <ActiveToolContext.Provider value={activeTab === 'rotate'}>
+                <Rotate />
+              </ActiveToolContext.Provider>
             </div>
             <div className={activeTab === 'resize' ? '' : 'hidden'}>
-              <Resize />
+              <ActiveToolContext.Provider value={activeTab === 'resize'}>
+                <Resize />
+              </ActiveToolContext.Provider>
             </div>
             <div className={activeTab === 'crop' ? '' : 'hidden'}>
-              <Crop />
+              <ActiveToolContext.Provider value={activeTab === 'crop'}>
+                <Crop />
+              </ActiveToolContext.Provider>
             </div>
             <div className={activeTab === 'versionFix' ? '' : 'hidden'}>
-              <VersionFix />
+              <ActiveToolContext.Provider value={activeTab === 'versionFix'}>
+                <VersionFix />
+              </ActiveToolContext.Provider>
             </div>
           </main>
         </div>

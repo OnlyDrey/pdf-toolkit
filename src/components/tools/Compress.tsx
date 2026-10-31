@@ -1,4 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useActiveTool } from '@/lib/active-tool-context'
+import { loadPdf, PdfInputError } from '@/lib/pdf-document'
+import { useState, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   Minimize2,
@@ -7,7 +9,6 @@ import {
   Info,
   Download,
 } from 'lucide-react'
-import { PDFDocument } from 'pdf-lib'
 import {
   Card,
   CardContent,
@@ -27,6 +28,8 @@ import { useSession } from '@/lib/session-context'
 
 export function Compress() {
   const { t } = useTranslation()
+  const active = useActiveTool()
+  const lastOutput = useRef<Uint8Array | null>(null)
   const { session, setSession } = useSession()
   const [file, setFile] = useState<File | null>(null)
   const [ffs, setFfs] = useState(false) // fileFromSession
@@ -39,6 +42,7 @@ export function Compress() {
   const [outName, setOutName] = useState('')
 
   useEffect(() => {
+    if (!active || (session && session.bytes === lastOutput.current)) return
     if (session && (!file || ffs)) {
       const f = new File([new Uint8Array(session.bytes)], session.name, {
         type: 'application/pdf',
@@ -56,7 +60,7 @@ export function Compress() {
       setFfs(false)
       setOrigSize(null)
     }
-  }, [session])
+  }, [session, active])
 
   const handleFile = (files: File[]) => {
     const f = files[0]
@@ -76,16 +80,28 @@ export function Compress() {
     setError(null)
     setDone(false)
     try {
-      const doc = await PDFDocument.load(await readFileAsArrayBuffer(file))
-      const pdfBytes = await doc.save({ useObjectStreams: true })
+      setOrigSize(file.size)
+      const original = new Uint8Array(await readFileAsArrayBuffer(file))
+      const doc = await loadPdf(original)
+      const candidate = await doc.save({ useObjectStreams: true })
+      const pdfBytes = candidate.length < original.length ? candidate : original
       const name = `${file.name.replace(/\.pdf$/i, '')}_compressed.pdf`
-      setCompSize(pdfBytes.length)
+      setCompSize(candidate.length)
+      lastOutput.current = pdfBytes
       setSession(pdfBytes, name)
+      setFile(
+        new File([new Uint8Array(pdfBytes)], name, { type: 'application/pdf' }),
+      )
+      setFfs(true)
       setOutBytes(pdfBytes)
       setOutName(name)
       setDone(true)
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Unknown error')
+      setError(
+        e instanceof PdfInputError
+          ? t(`errors.${e.code}`)
+          : t('errors.processing'),
+      )
     } finally {
       setProcessing(false)
     }
@@ -113,7 +129,7 @@ export function Compress() {
 
   const reduction =
     origSize && compSize
-      ? Math.max(0, Math.round(((origSize - compSize) / origSize) * 100))
+      ? Math.round(((origSize - compSize) / origSize) * 100)
       : null
 
   return (
@@ -164,7 +180,9 @@ export function Compress() {
                     {t('tools.compress.reduction')}
                   </p>
                   <p className="mt-1 font-medium text-green-600 dark:text-green-400">
-                    {reduction && reduction > 0 ? `-${reduction}%` : '~0%'}
+                    {reduction === null
+                      ? '~0%'
+                      : `${reduction > 0 ? '-' : '+'}${Math.abs(reduction)}%`}
                   </p>
                 </div>
                 <div>
@@ -174,7 +192,7 @@ export function Compress() {
                   <p className="mt-1 font-medium">{formatFileSize(compSize)}</p>
                 </div>
               </div>
-              {reduction === 0 && (
+              {reduction !== null && reduction <= 0 && (
                 <p className="text-xs text-muted-foreground">
                   {t('tools.compress.noReduction')}
                 </p>
@@ -182,13 +200,19 @@ export function Compress() {
             </>
           )}
           {error && (
-            <div className="flex items-center gap-2 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            <div
+              role="alert"
+              className="flex items-center gap-2 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive"
+            >
               <AlertCircle className="h-4 w-4 shrink-0" />
               {error}
             </div>
           )}
           {done && (
-            <div className="flex items-center gap-2 rounded-md bg-green-500/10 px-3 py-2 text-sm text-green-700 dark:text-green-400">
+            <div
+              role="status"
+              className="flex items-center gap-2 rounded-md bg-green-500/10 px-3 py-2 text-sm text-green-700 dark:text-green-400"
+            >
               <CheckCircle2 className="h-4 w-4 shrink-0" />
               {t('common.appliedToSession')}
             </div>

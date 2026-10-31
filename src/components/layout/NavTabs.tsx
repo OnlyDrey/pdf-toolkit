@@ -68,6 +68,7 @@ export function NavTabs({ activeTab, onTabChange }: NavTabsProps) {
               <TabsTrigger
                 key={id}
                 value={id}
+                aria-label={t(labelKey)}
                 className="flex h-12 items-center gap-2 rounded-none border-b-2 border-transparent px-4 py-0 text-sm font-medium data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
               >
                 {icon}

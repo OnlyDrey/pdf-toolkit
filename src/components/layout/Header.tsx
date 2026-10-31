@@ -41,7 +41,8 @@ export function Header() {
                   key={th}
                   type="button"
                   onClick={() => setTheme(th)}
-                  aria-label={th}
+                  aria-label={t(`theme.${th}`)}
+                  aria-pressed={theme === th}
                   className={cn(
                     'flex items-center justify-center rounded p-1.5 transition-colors',
                     theme === th

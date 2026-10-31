@@ -28,11 +28,11 @@ export function FileDropZone({
       (f) =>
         f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf'),
     )
-    if (files.length > 0) onFiles(files)
+    if (files.length > 0) onFiles(multiple ? files : files.slice(0, 1))
   }
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? [])
-    if (files.length > 0) onFiles(files)
+    if (files.length > 0) onFiles(multiple ? files : files.slice(0, 1))
     e.target.value = ''
   }
   const showSession = !hasFile && !!sessionName && !!onUseSession
@@ -50,7 +50,12 @@ export function FileDropZone({
           showSession && 'rounded-b-none border-b-0',
         )}
         onClick={() => inputRef.current?.click()}
-        onKeyDown={(e) => e.key === 'Enter' && inputRef.current?.click()}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            inputRef.current?.click()
+          }
+        }}
         onDrop={handleDrop}
         onDragOver={(e) => e.preventDefault()}
       >

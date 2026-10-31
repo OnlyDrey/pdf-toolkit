@@ -4,11 +4,11 @@
     "tagline": "Enkle, private PDF-verktoy - behandlet direkte i nettleseren"
   },
   "nav": {
-    "merge": "Sla sammen",
+    "merge": "Slå sammen",
     "compress": "Komprimer",
     "extract": "Hent ut sider",
     "rotate": "Roter",
-    "resize": "Endre storrelse",
+    "resize": "Endre størrelse",
     "crop": "Beskjær",
     "versionFix": "Versjonsfix"
   },
@@ -50,17 +50,27 @@
     "error": "Feil",
     "fileType": "Kun PDF-filer",
     "cancel": "Avbryt",
-    "close": "Lukk"
+    "close": "Lukk",
+    "previewUnavailable": "Forhåndsvisning utilgjengelig",
+    "selectedPages": "{{count}} sider valgt",
+    "pageLabel": "Side {{page}}"
   },
-  "theme": { "light": "Lyst", "dark": "Morkt", "system": "System" },
-  "language": { "en": "Engelsk", "nb": "Norsk" },
+  "theme": {
+    "light": "Lyst",
+    "dark": "Morkt",
+    "system": "System"
+  },
+  "language": {
+    "en": "Engelsk",
+    "nb": "Norsk"
+  },
   "tools": {
     "merge": {
       "title": "Sla sammen PDF-er",
       "description": "Kombiner flere PDF-filer til en. Dra for å endre rekkefolge.",
       "addFiles": "Legg til PDF-filer",
       "reorder": "Dra for å endre rekkefolge",
-      "action": "Sla sammen og last ned",
+      "action": "Slå sammen til arbeidsfil",
       "fileCount_one": "{{count}} fil",
       "fileCount_other": "{{count}} filer",
       "minimumFiles": "Legg til minst 2 PDF-filer for å sla sammen."
@@ -73,7 +83,7 @@
       "originalSize": "Opprinnelig storrelse",
       "compressedSize": "Komprimert storrelse",
       "reduction": "Reduksjon",
-      "noReduction": "Ingen vesentlig reduksjon oppnadd. Filen kan allerede vaere optimalisert."
+      "noReduction": "Omskrivingen reduserte ikke størrelsen. Originalfilen ble beholdt i økten."
     },
     "extract": {
       "title": "Hent ut sider",
@@ -143,7 +153,16 @@
         "1.6": "PDF 1.6 - Acrobat 7 (2004)",
         "1.7": "PDF 1.7 - Acrobat 8 (2006)",
         "2.0": "PDF 2.0 - ISO 32000-2 (2017)"
-      }
+      },
+      "note": "Endrer bare de tre versjonstegnene i filhodet. Konverterer ikke funksjoner og bekrefter ikke PDF/A- eller versjonskompatibilitet. Nedgradering er sperret; katalogversjonen kan overstyre filhodet. Endringer kan ugyldiggjøre signaturer."
     }
+  },
+  "errors": {
+    "invalid": "PDF-filen er skadet, tom eller ikke støttet. Prøv å eksportere den på nytt fra det opprinnelige programmet.",
+    "encrypted": "Krypterte PDF-filer støttes ikke. Dekrypter en kopi lokalt før du bruker verktøyet.",
+    "tooLarge": "Grensen er 100 MiB per PDF eller samlet ved sammenslåing. Del dokumentet lokalt først.",
+    "version": "Et fullstendig, støttet PDF-hode må stå i starten av filen.",
+    "downgrade": "En lavere versjon konverterer ikke PDF-funksjoner og støttes ikke.",
+    "processing": "Operasjonen mislyktes. Kontroller sidevalg, marger og PDF-filen, og prøv igjen."
   }
 }
