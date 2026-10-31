@@ -4,3 +4,7 @@ dist/
 playwright-report/
 test-results/
 .env*
+/app/releases/
+/app/.release-work/
+__pycache__/
+*.pyc
