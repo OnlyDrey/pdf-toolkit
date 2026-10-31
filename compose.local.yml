@@ -1,0 +1,4 @@
+services:
+  pdf-toolkit:
+    image: pdf-toolkit:local
+    build: .
