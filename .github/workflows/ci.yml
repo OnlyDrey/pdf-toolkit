@@ -1,7 +1,19 @@
 name: CI
 on:
   workflow_call:
+    inputs:
+      source_sha:
+        description: Exact commit to validate (release callers must supply this)
+        type: string
+        required: false
+        default: ''
+      require_full_validation:
+        description: Always run container and browser checks for release validation
+        type: boolean
+        required: false
+        default: false
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review, labeled]
   push:
     branches: [work, main, develop, 'feat/**', 'fix/**']
 permissions:
@@ -17,6 +29,9 @@ jobs:
         working-directory: app
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ inputs.source_sha || github.sha }}
+          persist-credentials: false
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '24'
@@ -27,15 +42,22 @@ jobs:
       - run: npm run lint
       - run: npm run format:check
       - run: npm run test:run
+      - run: npm run test:release --if-present
       - run: npm run build
       - run: npm audit --audit-level=high
   container:
+    # Bot PRs get code validation immediately; a maintainer label enables expensive checks.
+    # Release callers always force the full suite on the selected commit.
+    if: inputs.require_full_validation || github.event_name != 'pull_request' || github.event.pull_request.user.login != 'dependabot[bot]' || contains(github.event.pull_request.labels.*.name, 'dependencies:validate')
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: app
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ inputs.source_sha || github.sha }}
+          persist-credentials: false
       - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
       - uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
@@ -72,3 +94,19 @@ jobs:
         with:
           name: browser-test-results
           path: app/test-results/
+  ready:
+    # Require this aggregate check in branch protection: a skipped expensive job is not approval.
+    if: always()
+    needs: [validate, container]
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    steps:
+      - name: Require successful code, container and browser validation
+        env:
+          CODE_RESULT: ${{ needs.validate.result }}
+          CONTAINER_RESULT: ${{ needs.container.result }}
+        run: |
+          if [ "$CODE_RESULT" != success ] || [ "$CONTAINER_RESULT" != success ]; then
+            echo 'Full validation is required. For Dependabot PRs, a maintainer must apply dependencies:validate.' >&2
+            exit 1
+          fi

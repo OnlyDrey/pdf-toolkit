@@ -1,5 +1,26 @@
 name: Release
+run-name: Release ${{ inputs.channel || github.ref_name }} ${{ inputs.version }} from ${{ inputs.source_sha || github.sha }}
 on:
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: Release channel (Beta from work; Production from main)
+        type: choice
+        options: [beta, production]
+        required: true
+      version:
+        description: Version without v (1.2.0-beta.1 for Beta; 1.2.0 for Production)
+        type: string
+        required: true
+      source_sha:
+        description: Approved full 40-character commit SHA on the required source branch
+        type: string
+        required: true
+      confirm_publish:
+        description: I intend to publish this version after CI and Environment approval
+        type: boolean
+        required: true
+        default: false
   push:
     tags: ['v*']
 permissions:
@@ -7,55 +28,79 @@ permissions:
 concurrency:
   group: release-promotion
   cancel-in-progress: false
+env:
+  RELEASE_EVENT: ${{ github.event_name }}
+  RELEASE_REF: ${{ github.ref }}
+  RELEASE_EVENT_SHA: ${{ github.sha }}
+  RELEASE_CHANNEL: ${{ inputs.channel }}
+  RELEASE_VERSION: ${{ inputs.version }}
+  RELEASE_SOURCE_SHA: ${{ inputs.source_sha }}
+  RELEASE_CONFIRM: ${{ inputs.confirm_publish }}
 jobs:
-  version:
-    if: github.event_name == 'push' && github.ref_type == 'tag'
+  prepare:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
     outputs:
-      version: ${{ steps.version.outputs.version }}
-      channel: ${{ steps.version.outputs.channel }}
-      environment: ${{ steps.version.outputs.environment }}
+      version: ${{ steps.plan.outputs.version }}
+      channel: ${{ steps.plan.outputs.channel }}
+      image_channel: ${{ steps.plan.outputs.image_channel }}
+      environment: ${{ steps.plan.outputs.environment }}
+      source_sha: ${{ steps.plan.outputs.source_sha }}
+      tag: ${{ steps.plan.outputs.tag }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        with: { fetch-depth: 0 }
-      - id: version
-        shell: bash
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24'
+      - name: Validate release policy locally
+        run: node --test --test-isolation=none app/scripts/release.test.mjs
+      - name: Validate inputs, source, unique version and protected Environment
+        id: plan
         env:
-          TAG: ${{ github.ref_name }}
-        run: |
-          set -euo pipefail
-          if [[ "$TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)-beta\.(0|[1-9][0-9]*)$ ]]; then
-            echo 'channel=beta' >> "$GITHUB_OUTPUT"
-            echo 'environment=beta' >> "$GITHUB_OUTPUT"
-          elif [[ "$TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
-            git merge-base --is-ancestor "$GITHUB_SHA" origin/main
-            echo 'channel=latest' >> "$GITHUB_OUTPUT"
-            echo 'environment=production' >> "$GITHUB_OUTPUT"
-          else
-            echo 'Only stable SemVer and -beta.N tags are accepted' >&2; exit 1
-          fi
-          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node app/scripts/release.mjs prepare
   validate:
+    needs: prepare
     uses: ./.github/workflows/ci.yml
+    with:
+      source_sha: ${{ needs.prepare.outputs.source_sha }}
+      require_full_validation: true
   publish:
-    needs: [version, validate]
+    name: Approve ${{ needs.prepare.outputs.tag }} at ${{ needs.prepare.outputs.source_sha }}
+    needs: [prepare, validate]
     runs-on: ubuntu-latest
-    environment: ${{ needs.version.outputs.environment }}
+    environment: ${{ needs.prepare.outputs.environment }}
     permissions:
       contents: write
       packages: write
+      actions: read
+    env:
+      SOURCE_SHA: ${{ needs.prepare.outputs.source_sha }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - name: Require configured human release approval
+      - name: Check out release policy at the workflow revision
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.sha }}
+          path: release-policy
+          persist-credentials: false
+      - name: Check out the exact commit validated by CI
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ needs.prepare.outputs.source_sha }}
+          path: release-source
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24'
+      - name: Recheck source, tag uniqueness and Environment after human approval
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_ENVIRONMENT: ${{ needs.version.outputs.environment }}
-        run: |
-          set -euo pipefail
-          reviewers=$(gh api "repos/$GITHUB_REPOSITORY/environments/$RELEASE_ENVIRONMENT" --jq '[.protection_rules[] | select(.type == "required_reviewers") | .reviewers[]] | length')
-          if [ "$reviewers" -lt 1 ]; then
-            echo 'Configure required environment reviewers before releasing.' >&2; exit 1
-          fi
+        run: node release-policy/app/scripts/release.mjs recheck
       - uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
       - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
       - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
@@ -63,13 +108,23 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Require an unused GHCR version tag
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          set -euo pipefail
+          if docker buildx imagetools inspect "ghcr.io/onlydrey/pdf-toolkit:$VERSION" >/tmp/version-manifest 2>/tmp/version-error; then
+            echo 'Version image tag already exists; choose a new version.' >&2; exit 1
+          elif ! grep -Eqi 'manifest unknown|not found' /tmp/version-error; then
+            cat /tmp/version-error >&2; exit 1
+          fi
       - name: Resolve a previously validated artifact
         id: existing
         env:
           IMAGE: ghcr.io/onlydrey/pdf-toolkit
         run: |
           set -euo pipefail
-          if docker buildx imagetools inspect "$IMAGE:sha-$GITHUB_SHA" > /tmp/manifest 2>/tmp/manifest-error; then
+          if docker buildx imagetools inspect "$IMAGE:sha-$SOURCE_SHA" > /tmp/manifest 2>/tmp/manifest-error; then
             echo 'reuse=true' >> "$GITHUB_OUTPUT"
           elif grep -Eqi 'manifest unknown|not found' /tmp/manifest-error; then
             echo 'reuse=false' >> "$GITHUB_OUTPUT"
@@ -80,22 +135,22 @@ jobs:
         if: steps.existing.outputs.reuse != 'true'
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
-          context: ./app
+          context: ./release-source/app
           platforms: linux/amd64,linux/arm64
           push: true
-          tags: ghcr.io/onlydrey/pdf-toolkit:sha-${{ github.sha }}
+          tags: ghcr.io/onlydrey/pdf-toolkit:sha-${{ needs.prepare.outputs.source_sha }}
           provenance: mode=max
           sbom: true
           labels: |
             org.opencontainers.image.source=https://github.com/OnlyDrey/pdf-toolkit
-            org.opencontainers.image.revision=${{ github.sha }}
-            org.opencontainers.image.version=${{ needs.version.outputs.version }}
+            org.opencontainers.image.revision=${{ needs.prepare.outputs.source_sha }}
+            org.opencontainers.image.version=${{ needs.prepare.outputs.version }}
             org.opencontainers.image.licenses=MIT
           cache-from: type=gha
           cache-to: type=gha,mode=max
       - id: candidate
         run: |
-          digest=$(docker buildx imagetools inspect "ghcr.io/onlydrey/pdf-toolkit:sha-$GITHUB_SHA" --format '{{.Manifest.Digest}}')
+          digest=$(docker buildx imagetools inspect "ghcr.io/onlydrey/pdf-toolkit:sha-$SOURCE_SHA" --format '{{.Manifest.Digest}}')
           echo "ref=ghcr.io/onlydrey/pdf-toolkit@$digest" >> "$GITHUB_OUTPUT"
       - name: Scan amd64 candidate before promotion
         uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
@@ -117,11 +172,25 @@ jobs:
           image-ref: ${{ steps.candidate.outputs.ref }}
           severity: HIGH,CRITICAL
           exit-code: '1'
+      - name: Require an unused GHCR version tag
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          set -euo pipefail
+          if docker buildx imagetools inspect "ghcr.io/onlydrey/pdf-toolkit:$VERSION" >/tmp/version-manifest 2>/tmp/version-error; then
+            echo 'Version image tag already exists; choose a new version.' >&2; exit 1
+          elif ! grep -Eqi 'manifest unknown|not found' /tmp/version-error; then
+            cat /tmp/version-error >&2; exit 1
+          fi
+      - name: Reserve the validated version tag after scans
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node release-policy/app/scripts/release.mjs tag
       - name: Promote the scanned digest
         env:
           CANDIDATE: ${{ steps.candidate.outputs.ref }}
-          VERSION: ${{ needs.version.outputs.version }}
-          CHANNEL: ${{ needs.version.outputs.channel }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+          CHANNEL: ${{ needs.prepare.outputs.image_channel }}
         run: |
           set -euo pipefail
           image=ghcr.io/onlydrey/pdf-toolkit
@@ -130,11 +199,11 @@ jobs:
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ github.ref_name }}
-          CHANNEL: ${{ needs.version.outputs.channel }}
+          TAG: ${{ needs.prepare.outputs.tag }}
+          CHANNEL: ${{ needs.prepare.outputs.image_channel }}
           CANDIDATE: ${{ steps.candidate.outputs.ref }}
         run: |
           printf 'Container: `%s`\n\nUse the digest for reproducible deployments.\n' "$CANDIDATE" > /tmp/release-notes.md
           args=()
           if [ "$CHANNEL" = beta ]; then args+=(--prerelease --latest=false); else args+=(--latest); fi
-          gh release create "$TAG" --verify-tag --generate-notes --notes-file /tmp/release-notes.md "${args[@]}"
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag --generate-notes --notes-file /tmp/release-notes.md "${args[@]}"
