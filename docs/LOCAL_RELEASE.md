@@ -66,7 +66,7 @@ Install Docker Engine/Desktop with Linux containers and Buildx. The engine check
 ```powershell
 .\app\scripts\release.ps1 docker --channel beta --version 1.2.0 --verify-container --non-interactive
 .\app\scripts\release.ps1 package --channel beta --version 1.2.0 --with-docker --docker-format docker --non-interactive
-.\app\scripts\release.ps1 all --channel beta --version 1.2.0 --with-docker --docker-format oci --platforms linux/amd64,linux/arm64 --non-interactive
+.\app\scripts\release.ps1 all --channel beta --version 1.2.0 --with-docker --docker-format oci --platforms 'linux/amd64,linux/arm64' --non-interactive
 ```
 
 ```sh
@@ -98,3 +98,13 @@ The advanced `publish` action optionally **uploads distribution assets to an alr
 ```
 
 Creating/publishing that pre-existing release or pushing registry images is never implicit. This implementation task authorizes neither. After partial upload failures, inspect the remote assets before retrying; the engine will not overwrite them.
+
+## GitHub Actions integration
+
+The manual workflow still asks only for channel and base version. Beta pins current `work` HEAD; Production pins current `main` HEAD, independently of the dispatch selector. Its immutable policy calls the same Python calculator as local builds. GitHub API tag reservation, serialization, source rechecks, full CI, both architecture scans and protected Environment approval remain mandatory. Local reservations are filesystem-only and are not remote release reservations.
+
+After successful scans, the workflow uses the shared engine to package the pinned source with its reserved plan. The frontend bundle and checksum become GitHub Release assets only after approval. Packaging records `skipped` for its own redundant test invocation: the preceding required CI job validated that exact SHA. The workflow verifies the bundle against the build job's trusted SHA256 output before uploading. The already scanned OCI image is published without rebuilding it. See [required Environments and publication permissions](DEPLOYMENT.md).
+
+CI adds standard-library engine tests on Ubuntu and Windows, with the Windows launcher invoked by **Windows PowerShell 5.1**. The aggregate `ready` check requires both platforms. Workflow policy tests require Python 3.11+ as well as Node 24. These jobs run only when CI is requested by repository triggers; implementing them does not dispatch Actions.
+
+A supplied `--release-plan` is an internal packaging handoff, not evidence of approval. It must match the checkout SHA and valid channel/version; only the protected workflow authorizes registry/new-release publication. Local production confirmation authorizes artifact creation only.

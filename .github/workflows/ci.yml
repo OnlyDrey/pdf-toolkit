@@ -37,6 +37,9 @@ jobs:
           node-version: '24'
           cache: npm
           cache-dependency-path: app/package-lock.json
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.11'
       - run: npm ci
       - run: npm run typecheck
       - run: npm run lint
@@ -45,6 +48,36 @@ jobs:
       - run: npm run test:release --if-present
       - run: npm run build
       - run: npm audit --audit-level=high
+  release-engine:
+    name: Release engine (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      # Test the immutable release policy even when validating an older application SHA.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.sha }}
+          path: release-policy
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.11'
+      - run: python -m unittest discover -s release-policy/app/scripts -p test_release.py
+      - name: Check Bash launcher
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          bash -n release-policy/app/scripts/release.sh
+          release-policy/app/scripts/release.sh build --dry-run --non-interactive
+      - name: Check Windows PowerShell 5.1 launcher
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: |
+          & .\release-policy\app\scripts\release.ps1 build --dry-run --non-interactive
+          exit $LASTEXITCODE
   container:
     # Bot PRs get code validation immediately; a maintainer label enables expensive checks.
     # Release callers always force the full suite on the selected commit.
@@ -97,7 +130,7 @@ jobs:
   ready:
     # Require this aggregate check in branch protection: a skipped expensive job is not approval.
     if: always()
-    needs: [validate, container]
+    needs: [validate, release-engine, container]
     runs-on: ubuntu-latest
     timeout-minutes: 1
     steps:
@@ -105,8 +138,9 @@ jobs:
         env:
           CODE_RESULT: ${{ needs.validate.result }}
           CONTAINER_RESULT: ${{ needs.container.result }}
+          ENGINE_RESULT: ${{ needs.release-engine.result }}
         run: |
-          if [ "$CODE_RESULT" != success ] || [ "$CONTAINER_RESULT" != success ]; then
+          if [ "$CODE_RESULT" != success ] || [ "$CONTAINER_RESULT" != success ] || [ "$ENGINE_RESULT" != success ]; then
             echo 'Full validation is required. For Dependabot PRs, a maintainer must apply dependencies:validate.' >&2
             exit 1
           fi

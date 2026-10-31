@@ -240,6 +240,38 @@ class PackagingTests(EngineFixture):
             engine.ensure_build()
             self.assertEqual(npm.call_count, 2)
 
+    def test_changed_build_inputs_cannot_create_a_valid_stamp(self):
+        engine = self.package_engine()
+        def change(script):
+            (engine.app / "package.json").write_text('{"version":"1.3.0"}')
+        with patch.object(engine, "npm", side_effect=change):
+            with self.assertRaises(release.ReleaseError) as result:
+                engine.build()
+        self.assertEqual(result.exception.code, 4)
+
+    def test_supplied_workflow_plan_uses_reserved_version_and_checks_source(self):
+        engine = self.package_engine()
+        path = self.repo / "plan.json"
+        plan = {"channel": "beta", "base_version": "1.2.0", "version": "1.2.0-beta.19", "tag": "v1.2.0-beta.19", "source_sha": "a" * 40}
+        path.write_text(json.dumps(plan))
+        engine.args.release_plan = str(path)
+        with patch.object(engine, "version_facts", side_effect=AssertionError("remote lookup")):
+            engine.release()
+        data = engine.verify_manifest(engine.output / "pdf-toolkit-1.2.0-beta.19/release-manifest.json")
+        self.assertFalse(data["provisional"])
+        self.assertEqual(data["version_authority"], "provided-plan")
+        with self.assertRaises(release.ReleaseError):
+            engine.release()
+        plan["source_sha"] = "b" * 40
+        path.write_text(json.dumps(plan))
+        with self.assertRaises(release.ReleaseError):
+            engine.supplied_plan()
+        plan["source_sha"] = "a" * 40
+        plan["version"] = "1.2.1-beta.19"
+        path.write_text(json.dumps(plan))
+        with self.assertRaises(release.ReleaseError):
+            engine.supplied_plan()
+
     def test_cleanup_rejects_symlink_without_following_it(self):
         engine = self.package_engine()
         outside = self.repo / "outside.txt"

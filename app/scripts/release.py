@@ -209,20 +209,26 @@ class Engine:
         self.command([self.executable("npm"), "run", script], env=environment)
 
     def fingerprint(self, directory=None):
-        roots = [directory] if directory else [self.app / "src", self.app / "public", *[self.app / name for name in ("package.json", "package-lock.json", "index.html", "vite.config.ts", "tailwind.config.ts", "postcss.config.js", "tsconfig.json", "tsconfig.node.json")]]
+        roots = [directory] if directory else [self.app / name for name in (
+            "src", "public", "scripts", "tests", "package.json", "package-lock.json", "index.html",
+            "vite.config.ts", "tailwind.config.ts", "postcss.config.js", "tsconfig.json", "tsconfig.node.json",
+            "eslint.config.js", "playwright.config.ts", ".prettierignore", ".prettierrc.json",
+            "Dockerfile", ".dockerignore", "nginx.conf", "compose.local.yaml")]
+        if not directory:
+            roots.append(self.repo / "compose.yaml")
         files = []
         for root in roots:
             if root.exists():
                 guarded_path(root)
                 for file in (root.rglob("*") if root.is_dir() else [root]):
                     guarded_path(file)
-                    if file.is_file():
+                    if file.is_file() and "__pycache__" not in file.parts and file.suffix != ".pyc":
                         files.append(file)
         files = sorted(set(files))
         result = hashlib.sha256()
         for file in files:
             guarded_path(file)
-            result.update(file.relative_to(self.app).as_posix().encode())
+            result.update(file.relative_to(self.repo).as_posix().encode())
             result.update(b"\0" + digest(file).encode() + b"\0")
         return result.hexdigest()
 
@@ -246,10 +252,13 @@ class Engine:
 
     def build(self):
         with self.build_lock():
+            original = self.fingerprint()
             self.npm("build")
             if not self.args.dry_run:
                 if not (self.app / "dist/index.html").is_file():
                     raise ReleaseError("Build did not produce dist/index.html", 4)
+                if original != self.fingerprint():
+                    raise ReleaseError("Source inputs changed during build", 4)
                 work = self.app / ".release-work"
                 (work / "build.json").write_text(json.dumps({"inputs": self.fingerprint(), "dist": self.fingerprint(self.app / "dist")}), encoding="utf-8")
 

@@ -114,3 +114,9 @@ Inputs are limited to 100 MiB per document or combined merge input. Memory use c
 Malformed, empty, unsupported and encrypted PDFs report errors. Decrypt a copy locally first. Complex forms, annotations, unusual fonts and signatures need manual reader checks; modifications can invalidate digital signatures. Structural compression does not reduce image quality and may yield little improvement. It reports the actual candidate size and retains the original bytes when the rewrite is not smaller.
 
 Crop changes the visible crop box in unrotated PDF coordinates; hidden content stays in the file. **Crop is not redaction.** Version Fix changes only the header's three version characters, checks the document and catalog version, and blocks downgrades. It does not convert features or establish reader compatibility or PDF/A conformance.
+
+## Builds without GitHub Actions
+
+Use the [cross-platform local release guide](LOCAL_RELEASE.md) for Python 3.11+, PowerShell 5.1/Bash commands, frontend ZIPs, optional Docker/OCI archives, offline version allocation and manual deployment/rollback. No GitHub authentication is needed for local builds or packaging. Local production confirmation does not publish anything.
+
+The protected release workflow reuses this engine for version calculation and checksummed frontend packaging. The frontend bundle is attached after Environment approval alongside source/image metadata; the OCI image continues through both architecture scans and is published without a rebuild. Local optional publication uploads assets only to an existing approved GitHub Release and never creates tags or pushes images.

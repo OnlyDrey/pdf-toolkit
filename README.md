@@ -33,10 +33,13 @@ npm run dev
 
 Checks: `npm run typecheck`, `npm run lint`, `npm run format:check`, `npm run test:run` and `npm run build`. Install Chromium with `npx playwright install --with-deps chromium`, then run `npm run test:e2e`.
 
+Python 3.11+ provides the same local build/release commands on Windows PowerShell 5.1 and Linux Bash. See the [local build and packaging guide](docs/LOCAL_RELEASE.md) for prerequisites and examples.
+
 For a local container build, run `docker compose -f app/compose.local.yaml up --build` from the repository root. Development and Git rules are in [AGENTS.md](AGENTS.md).
 
 ## Documentation
 
+- [Cross-platform local builds and release packaging](docs/LOCAL_RELEASE.md)
 - [Deployment and manual release guide](docs/DEPLOYMENT.md)
 - [Dependency maintenance and CI cost](docs/DEPENDENCIES.md)
 - [Verification and remaining manual checks](docs/VERIFICATION.md)

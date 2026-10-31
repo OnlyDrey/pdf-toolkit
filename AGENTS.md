@@ -8,13 +8,15 @@
 - Never modify, push, merge or rebase `main`. Reading its ref for release validation is permitted.
 - Every new commit message MUST contain `[skip ci]`.
 - No unattended image/package publishing or workflow dispatch. Manually dispatch workflows or publish GitHub releases only when the user explicitly authorizes that specific action; implementing release controls is not authorization to run them. Never create pull requests automatically.
-- Preserve existing commits and user changes. Do not force-push.
+- Preserve existing commits and user changes. Do not force-push. Commit and push each completed independent phase before beginning the next.
 
 ## Layout and commands
 
 Keep application code, tests, scripts, Docker assets and build configuration directly under `app/`, preserving the existing `src/`, `tests/` and `scripts/` organization. `.github/` contains repository automation, `docs/` contains guides, and root `compose.yaml` deploys published GHCR images without a build. Root `.gitignore` is the necessary exception to the minimal root layout: it excludes deployment `.env` files and generated artifacts.
 
 Use Node 24 LTS. From the repository root, run `cd app`, `npm ci`, then `npm run dev`. Run targeted checks during implementation and one complete regression at the end: `npm run typecheck`, `npm run lint`, `npm run format:check`, `npm run test:run`, `npm run test:release`, `npm run build` and `npm run test:e2e`. Formatting commands also cover repository documentation, Compose and workflows using the configuration in `app/`. Install Chromium with `npx playwright install --with-deps chromium` when needed; an existing system browser can be selected with `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`.
+
+Use Python 3.11+ for the shared standard-library release engine in `app/scripts/release.py`; keep Bash and Windows PowerShell 5.1 launchers thin. Run `python -m unittest discover -s app/scripts -p test_release.py` alongside the full regression. Local `all` runs validation, production build and packaging; Docker remains optional. Local operations never create or push Git tags. Publishing requires separate explicit user authorization; the optional asset uploader only targets an existing approved release and must preserve scan/validation requirements. See [local releases](docs/LOCAL_RELEASE.md).
 
 From the root, validate `docker compose config --quiet`, build with `docker build -t pdf-toolkit:verify app`, then run `app/scripts/test-container.sh`. Local build/deployment uses `docker compose -f app/compose.local.yaml up --build`. Test browser workflows against the actual hardened Nginx container when Docker assets change. Check workflow paths and documentation links after moves.
 

@@ -40,6 +40,10 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '24'
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.11'
+      - run: python -m unittest discover -s app/scripts -p test_release.py
       - run: node --test --test-isolation=none app/scripts/release.test.mjs
       - name: Pin channel HEAD and atomically reserve its version
         id: plan
@@ -76,6 +80,7 @@ jobs:
     outputs:
       image_digest: ${{ steps.image.outputs.image_digest }}
       archive_sha256: ${{ steps.image.outputs.archive_sha256 }}
+      bundle_sha256: ${{ steps.package.outputs.bundle_sha256 }}
     steps:
       - name: Check out immutable release policy
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -95,6 +100,9 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '24'
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.11'
       - name: Stop if the selected branch HEAD or reservation changed
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -142,6 +150,25 @@ jobs:
           scanners: vuln
           severity: HIGH,CRITICAL
           exit-code: '1'
+      - name: Package frontend with the shared local release engine
+        id: package
+        env:
+          RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          npm ci --prefix release-source/app
+          python release-policy/app/scripts/release.py package --source-dir release-source --release-plan release-plan.json --output-dir release-bundles --skip-tests --offline --yes --non-interactive
+          bundle="release-bundles/pdf-toolkit-$RELEASE_VERSION.zip"
+          printf 'bundle_sha256=%s\n' "$(sha256sum "$bundle" | cut -d ' ' -f1)" >> "$GITHUB_OUTPUT"
+      - name: Preserve the checksummed frontend bundle
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: frontend-release
+          path: |
+            release-bundles/*.zip
+            release-bundles/*.zip.sha256
+          if-no-files-found: error
+          retention-days: 7
+          overwrite: true
       - name: Summarize the scanned artifact for reviewers
         env:
           DIGEST: ${{ steps.image.outputs.image_digest }}
@@ -173,6 +200,7 @@ jobs:
       EXPECTED_TAG: ${{ needs.prepare.outputs.tag }}
       EXPECTED_DIGEST: ${{ needs.build.outputs.image_digest }}
       EXPECTED_ARCHIVE_SHA256: ${{ needs.build.outputs.archive_sha256 }}
+      EXPECTED_BUNDLE_SHA256: ${{ needs.build.outputs.bundle_sha256 }}
       VERSION: ${{ needs.prepare.outputs.version }}
       IMAGE_CHANNEL: ${{ needs.prepare.outputs.image_channel }}
       IMAGE: ghcr.io/onlydrey/pdf-toolkit
@@ -191,8 +219,14 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '24'
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: frontend-release
+          path: release-bundles
       - name: Verify that the approved archive is exactly the scanned artifact
         run: |
+          printf '%s  release-bundles/pdf-toolkit-%s.zip\n' "$EXPECTED_BUNDLE_SHA256" "$VERSION" | sha256sum --check -
+          printf '%s  pdf-toolkit-%s.zip\n' "$EXPECTED_BUNDLE_SHA256" "$VERSION" > "release-bundles/pdf-toolkit-$VERSION.zip.sha256"
           printf '%s  image.tar\n' "$EXPECTED_ARCHIVE_SHA256" | sha256sum --check -
           mkdir image-layout
           tar -xf image.tar -C image-layout
@@ -237,7 +271,7 @@ jobs:
           printf 'Version: `%s`\n\nSource: `%s`\n\nImage: `%s@%s`\n\nRun: %s/%s/actions/runs/%s\n' "$EXPECTED_TAG" "$EXPECTED_SOURCE_SHA" "$IMAGE" "$EXPECTED_DIGEST" "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" > release-notes.md
           args=()
           if [ "$IMAGE_CHANNEL" = beta ]; then args+=(--prerelease --latest=false); else args+=(--latest); fi
-          gh release create "$EXPECTED_TAG" release-plan.json image-metadata.json --repo "$GITHUB_REPOSITORY" --verify-tag --title "$EXPECTED_TAG" --generate-notes --notes-file release-notes.md "${args[@]}"
+          gh release create "$EXPECTED_TAG" release-plan.json image-metadata.json "release-bundles/pdf-toolkit-$VERSION.zip" "release-bundles/pdf-toolkit-$VERSION.zip.sha256" --repo "$GITHUB_REPOSITORY" --verify-tag --title "$EXPECTED_TAG" --generate-notes --notes-file release-notes.md "${args[@]}"
   summary:
     name: Release result and traceability
     if: always()
