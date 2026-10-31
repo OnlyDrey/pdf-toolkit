@@ -39,3 +39,13 @@ Open Dependabot PRs target `main`: [#8](https://github.com/OnlyDrey/pdf-toolkit/
 ## Compatible update validation
 
 Autoprefixer 10.6.2 installs without peer overrides; `npm ls --all`, the production TypeScript/Vite build and npm audit pass. The lockfile changes only Autoprefixer's entry/root pin and its metadata. No other direct package has a compatible newer stable release, and the transitive audit found no newer compatible installed ranges requiring a separate refresh. The audit still reports zero vulnerabilities.
+
+## Tailwind 4 migration
+
+Tailwind CSS 4.3.3 uses its matching `@tailwindcss/vite` 4.3.3 plugin; tailwind-merge is 3.7.0. The CSS-first `@theme` configuration preserves all existing semantic HSL tokens, radius values and class-based dark mode. The compatible tailwindcss-animate 1.0.7 plugin remains. Redundant Tailwind 3 and PostCSS configuration files, direct PostCSS and Autoprefixer are removed; Vite/Tailwind's maintained CSS toolchain provides processing and prefixing. Transitive PostCSS remains patched through Vite.
+
+The migration maps small shadows to `shadow-xs` and focus outlines to `outline-hidden`, preserves the existing green status palette and button cursors, and explicitly retains v3 sibling spacing. Visual comparison caught the changed v4 spacing semantics before completion. Three new class-conflict regression tests cover the tailwind-merge migration. Production build, lint, formatting, the peer tree, 40 unit tests and audit pass locally.
+
+TypeScript 7 remains deferred until the stable lint toolchain supports it. Node 26 typings are intentionally excluded. The Tailwind 4 browser baseline is modern Chrome 111+, Safari 16.4+ and Firefox 128+; older browsers are not claimed as supported. Chromium screenshots do not establish Safari/Firefox rendering parity. Application logic, English/Norwegian translations, PDF.js and its matching worker are unchanged.
+
+Visual regression: 72 before/after Chromium states are pixel-identical on this Linux host: desktop/mobile, light/dark, English/Norwegian, empty upload, all seven tools with a shared PDF and open paper-size menus. Captures disable transitions/animations and normalize popup scroll position; PDF rendering is allowed to settle. The initial spacing difference was fixed, and screenshot-induced viewport/focus differences were removed from the harness. This is same-host visual parity, not a claim of identical cross-browser rendering or archive bytes.

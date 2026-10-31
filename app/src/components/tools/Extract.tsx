@@ -244,7 +244,7 @@ export function Extract() {
                         onClick={() => togglePage(i)}
                         className={cn(
                           'relative flex flex-col items-center gap-1 rounded transition-opacity duration-150',
-                          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+                          'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
                           isSel ? 'opacity-100' : 'opacity-60 hover:opacity-90',
                         )}
                       >
@@ -273,7 +273,7 @@ export function Extract() {
                         {isSel && (
                           <div
                             aria-hidden="true"
-                            className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm"
+                            className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-xs"
                           >
                             <CheckCircle2 className="h-3.5 w-3.5" />
                           </div>
