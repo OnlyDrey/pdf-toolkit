@@ -35,3 +35,7 @@ Review individual Action releases' inputs/runtime before updating immutable SHA 
 ## Dependabot PR inventory
 
 Open Dependabot PRs target `main`: [#8](https://github.com/OnlyDrey/pdf-toolkit/pull/8) (Autoprefixer), [#6](https://github.com/OnlyDrey/pdf-toolkit/pull/6) (Trivy Action) and [#15](https://github.com/OnlyDrey/pdf-toolkit/pull/15) (Node/Nginx group). Final supersession recommendations follow local validation. Nothing is merged or closed automatically. Updating `work` does not put these changes on `main`.
+
+## Compatible update validation
+
+Autoprefixer 10.6.2 installs without peer overrides; `npm ls --all`, the production TypeScript/Vite build and npm audit pass. The lockfile changes only Autoprefixer's entry/root pin and its metadata. No other direct package has a compatible newer stable release, and the transitive audit found no newer compatible installed ranges requiring a separate refresh. The audit still reports zero vulnerabilities.
