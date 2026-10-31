@@ -86,3 +86,25 @@ The local beta package records full validation as `passed`, its exact clean sour
 Container checks and both Compose definitions pass. Trivy reports zero HIGH/CRITICAL findings in the final runtime image. Local/container CSS SHA256 is identical: `cdb6f3c2ed4be3b2bc2a132dcff2247dbe74110450a443e2d2a5e4b2520ff541`. The final scoped CSS matches all 72 pre-migration screenshots pixel-for-pixel. actionlint and local YAML/permission/source/approval contracts pass; all Action pins were verified against upstream commits and input manifests. Local documentation links resolve.
 
 Remaining validation boundaries: this host does not execute Windows PowerShell 5.1 or ARM64 containers. Their launchers, lockfile platform entries, CI matrix and multi-platform manifests are preserved, but native Windows/ARM64 runs are not claimed. Hosted Action runtime/artifact integration and protected release publication require separately authorized external runs. No Actions minutes are consumed here. The existing large Vite chunk warning remains; no unrelated bundle/UI redesign was introduced.
+
+## Dependabot cleanup recommendations
+
+No PR is merged, closed, retargeted, approved or labeled by this task. All three remaining open PRs target `main`, which does not receive this work automatically. Review/promote the completed `work` changes through the normal human process before closing useful update coverage on `main`.
+
+| Open PR                                                                            | Relationship to this work                                                                                        | Recommendation after accepting the modernization                                                                                                                                                                           |
+| ---------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [#8 — Autoprefixer 10.6.2](https://github.com/OnlyDrey/pdf-toolkit/pull/8)         | Compatible update was validated, then the direct dependency became redundant with Tailwind 4's Vite integration. | Safe to close as obsolete once the migration is accepted; there is no remaining Autoprefixer pin to update.                                                                                                                |
+| [#6 — Trivy Action 0.36.0](https://github.com/OnlyDrey/pdf-toolkit/pull/6)         | Its exact version/commit is incorporated in both workflows, with scanner version explicitly preserved.           | Safe to close as superseded once the workflow changes are accepted.                                                                                                                                                        |
+| [#15 — grouped Node/Nginx images](https://github.com/OnlyDrey/pdf-toolkit/pull/15) | Node 24.22.1 is incorporated; Nginx 1.31.8 is intentionally declined because it changes stable to mainline.      | Do not merge the group wholesale. Close/replace it once the reviewed Node update and stable-line policy are accepted; it is only partially superseded by version, and its remaining Nginx change is deliberately rejected. |
+
+Previously closed, unmerged PRs #12/#13 (Tailwind/merge) and #3/#5/#7/#9 (Actions) are covered by the tested migration/current pins. Keep #11 (TypeScript 7), #10 (Node 26 typings), #2 (Node 26 image) and #4 (mainline Nginx) deferred for the documented compatibility/channel reasons. No closed PR is reopened. Historical failed checks remain historical: Tailwind's integration failure is fixed locally, the unsupported TypeScript update is excluded, and unapproved Dependabot `ready` failures remain intentional until a maintainer requests full validation.
+
+Every implementation phase is committed with `[skip ci]` and pushed exclusively to `origin/work` before the next phase. No manual dispatch, Git tag, registry push, GitHub Release, PR creation/closure/merge or repository approval/settings change occurs. Native Windows/ARM64 and hosted Actions verification still require separate authorization/capable environments.
+
+Completed phase commits before these final recommendations:
+
+- `f7819fa49260f740e3e5bbbf870329e1833a89da` — Document dependency compatibility and failed-check audit [skip ci]
+- `5026ca345965948797bb515559a6b83cc937ecd4` — Update compatible Autoprefixer dependency and lockfile [skip ci]
+- `ed7d702d2be2c692966086b7c489f458254c81d4` — Migrate Tailwind 4 and class merging with verified visual parity [skip ci]
+- `53c0c52fc9488e1009c5667f7fb0759f8ba65f44` — Modernize Docker and Action pins while preserving release controls [skip ci]
+- `cf322d13555b576655904607d0e7aa4051cf66bb` — Record complete modernization regression and platform limits [skip ci]
