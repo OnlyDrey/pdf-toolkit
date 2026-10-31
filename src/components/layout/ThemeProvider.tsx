@@ -6,8 +6,11 @@ const STORAGE_KEY = 'pdf-toolkit-theme'
 function getInitialTheme(): Theme {
   try {
     const stored = localStorage.getItem(STORAGE_KEY)
-    if (stored === 'light' || stored === 'dark' || stored === 'system') return stored
-  } catch { /* SSR / private-mode guard */ }
+    if (stored === 'light' || stored === 'dark' || stored === 'system')
+      return stored
+  } catch {
+    /* SSR / private-mode guard */
+  }
   return 'system'
 }
 
@@ -18,7 +21,10 @@ function applyTheme(theme: Theme) {
   } else if (theme === 'light') {
     root.classList.remove('dark')
   } else {
-    root.classList.toggle('dark', window.matchMedia('(prefers-color-scheme: dark)').matches)
+    root.classList.toggle(
+      'dark',
+      window.matchMedia('(prefers-color-scheme: dark)').matches,
+    )
   }
 }
 
@@ -26,7 +32,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<Theme>(getInitialTheme)
 
   const setTheme = (t: Theme) => {
-    try { localStorage.setItem(STORAGE_KEY, t) } catch { /* ignore */ }
+    try {
+      localStorage.setItem(STORAGE_KEY, t)
+    } catch {
+      /* ignore */
+    }
     setThemeState(t)
   }
 

@@ -12,7 +12,10 @@ i18n
     fallbackLng: 'en',
     supportedLngs: ['en', 'nb'],
     interpolation: { escapeValue: false },
-    detection: { order: ['localStorage', 'navigator'], caches: ['localStorage'] },
+    detection: {
+      order: ['localStorage', 'navigator'],
+      caches: ['localStorage'],
+    },
     react: { useSuspense: true },
     debug: false,
   })
