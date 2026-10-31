@@ -1,0 +1,168 @@
+{
+  "app": {
+    "title": "PDF Toolkit",
+    "tagline": "Simple, private PDF tools - processed entirely in your browser"
+  },
+  "nav": {
+    "merge": "Merge",
+    "compress": "Compress",
+    "extract": "Extract Pages",
+    "rotate": "Rotate",
+    "resize": "Resize",
+    "crop": "Crop",
+    "versionFix": "Version Fix"
+  },
+  "session": {
+    "working": "Working on",
+    "download": "Download",
+    "saveAndDownload": "Save & Download",
+    "clear": "Discard",
+    "saveToSession": "Save to session",
+    "useFile": "Session",
+    "use": "Use"
+  },
+  "common": {
+    "upload": "Upload",
+    "download": "Download",
+    "process": "Process",
+    "reset": "Reset",
+    "apply": "Apply",
+    "downloadResult": "Download result",
+    "appliedToSession": "Applied - working file updated",
+    "addFiles": "Add Files",
+    "remove": "Remove",
+    "moveUp": "Move Up",
+    "moveDown": "Move Down",
+    "allPages": "All pages",
+    "specificPages": "Specific pages",
+    "pageRange": "Page range",
+    "pageRangePlaceholder": "e.g. 1,3,5-8",
+    "portrait": "Portrait",
+    "landscape": "Landscape",
+    "dragDropHere": "Drag & drop a PDF file here, or click to browse",
+    "dragDropMultiple": "Drag & drop PDF files here, or click to browse",
+    "fileSizeKB": "{{size}} KB",
+    "fileSizeMB": "{{size}} MB",
+    "pages": "{{count}} page",
+    "pages_other": "{{count}} pages",
+    "processing": "Processing...",
+    "done": "Done!",
+    "error": "Error",
+    "fileType": "PDF files only",
+    "cancel": "Cancel",
+    "close": "Close",
+    "previewUnavailable": "Preview unavailable",
+    "selectedPages": "{{count}} pages selected",
+    "pageLabel": "Page {{page}}"
+  },
+  "theme": {
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System"
+  },
+  "language": {
+    "en": "English",
+    "nb": "Norwegian"
+  },
+  "tools": {
+    "merge": {
+      "title": "Merge PDFs",
+      "description": "Combine multiple PDF files into one. Drag to reorder before merging.",
+      "addFiles": "Add PDF files",
+      "reorder": "Drag to reorder",
+      "action": "Merge into working file",
+      "fileCount_one": "{{count}} file",
+      "fileCount_other": "{{count}} files",
+      "minimumFiles": "Add at least 2 PDF files to merge."
+    },
+    "compress": {
+      "title": "Compress PDF",
+      "description": "Reduce file size by optimising the internal PDF structure.",
+      "note": "Uses structural compression (object streams). Image quality is not changed.",
+      "action": "Compress and download",
+      "originalSize": "Original size",
+      "compressedSize": "Compressed size",
+      "reduction": "Reduction",
+      "noReduction": "The rewrite did not reduce size. The original file was kept in the session."
+    },
+    "extract": {
+      "title": "Extract Pages",
+      "description": "Extract specific pages or page ranges into a new PDF.",
+      "selectPages": "Pages to extract",
+      "action": "Extract and download",
+      "totalPages": "Total pages: {{count}}",
+      "hint": "Enter page numbers and ranges, e.g. 1,3,5-8",
+      "previewHint": "Click pages to select. Up to 12 thumbnails shown."
+    },
+    "rotate": {
+      "title": "Rotate Pages",
+      "description": "Rotate pages in your PDF by 90, 180, or 270 degrees.",
+      "angle": "Rotation angle",
+      "deg90": "90 degrees clockwise",
+      "deg180": "180 degrees",
+      "deg270": "270 degrees (90 counter-clockwise)",
+      "action": "Rotate and download",
+      "applyTo": "Apply to",
+      "preview": "Preview (first page)",
+      "previewLabel": "Rotated {{deg}} degrees"
+    },
+    "resize": {
+      "title": "Resize Pages",
+      "description": "Resize all pages in your PDF to a standard paper size.",
+      "paperSize": "Paper size",
+      "orientation": "Orientation",
+      "scaleContent": "Scale content to fit",
+      "action": "Resize and download",
+      "dimensions": "{{width}} x {{height}} mm",
+      "categories": {
+        "ISO-A": "ISO A Series",
+        "ISO-B": "ISO B Series",
+        "ISO-C": "ISO C Series",
+        "US": "US & Other"
+      },
+      "previewOriginal": "Original",
+      "previewTarget": "Target"
+    },
+    "crop": {
+      "title": "Crop Pages",
+      "description": "Set the visible area of PDF pages using margin values.",
+      "note": "Visual crop only - content outside the crop box is hidden, not removed from the file.",
+      "margins": "Margins (points)",
+      "top": "Top",
+      "right": "Right",
+      "bottom": "Bottom",
+      "left": "Left",
+      "action": "Crop and download",
+      "applyTo": "Apply to",
+      "preview": "Preview (first page)"
+    },
+    "versionFix": {
+      "title": "Version Fix",
+      "description": "Detect and rewrite the PDF version header to a target version.",
+      "currentVersion": "Detected version",
+      "targetVersion": "Target version",
+      "action": "Fix version and download",
+      "unknown": "Unknown",
+      "versions": {
+        "1.0": "PDF 1.0 - Acrobat 1 (1993)",
+        "1.1": "PDF 1.1 - Acrobat 2 (1994)",
+        "1.2": "PDF 1.2 - Acrobat 3 (1996)",
+        "1.3": "PDF 1.3 - Acrobat 4 (1999)",
+        "1.4": "PDF 1.4 - Acrobat 5, transparency (2001)",
+        "1.5": "PDF 1.5 - Acrobat 6, object streams (2003)",
+        "1.6": "PDF 1.6 - Acrobat 7, AES encryption (2004)",
+        "1.7": "PDF 1.7 - Acrobat 8, ISO 32000 (2006)",
+        "2.0": "PDF 2.0 - ISO 32000-2 (2017)"
+      },
+      "note": "Edits only the three version characters in the header. It does not convert features or prove PDF/A or version compatibility. Downgrades are blocked; a catalog version may override the header. Editing can invalidate signatures."
+    }
+  },
+  "errors": {
+    "invalid": "This PDF is malformed, empty or unsupported. Try exporting it again from its original application.",
+    "encrypted": "Encrypted PDFs are not supported. Decrypt a copy locally before using this tool.",
+    "tooLarge": "The limit is 100 MiB per PDF or combined merge input. Split the document locally first.",
+    "version": "A complete, supported PDF header must appear at the start of the file.",
+    "downgrade": "Lowering the version does not convert PDF features and is not supported.",
+    "processing": "The operation failed. Check your page range, margins and PDF, then try again."
+  }
+}

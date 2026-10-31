@@ -1,0 +1,140 @@
+name: Release
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: read
+concurrency:
+  group: release-promotion
+  cancel-in-progress: false
+jobs:
+  version:
+    if: github.event_name == 'push' && github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      channel: ${{ steps.version.outputs.channel }}
+      environment: ${{ steps.version.outputs.environment }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with: { fetch-depth: 0 }
+      - id: version
+        shell: bash
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          if [[ "$TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)-beta\.(0|[1-9][0-9]*)$ ]]; then
+            echo 'channel=beta' >> "$GITHUB_OUTPUT"
+            echo 'environment=beta' >> "$GITHUB_OUTPUT"
+          elif [[ "$TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then
+            git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+            echo 'channel=latest' >> "$GITHUB_OUTPUT"
+            echo 'environment=production' >> "$GITHUB_OUTPUT"
+          else
+            echo 'Only stable SemVer and -beta.N tags are accepted' >&2; exit 1
+          fi
+          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+  validate:
+    uses: ./.github/workflows/ci.yml
+  publish:
+    needs: [version, validate]
+    runs-on: ubuntu-latest
+    environment: ${{ needs.version.outputs.environment }}
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Require configured human release approval
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_ENVIRONMENT: ${{ needs.version.outputs.environment }}
+        run: |
+          set -euo pipefail
+          reviewers=$(gh api "repos/$GITHUB_REPOSITORY/environments/$RELEASE_ENVIRONMENT" --jq '[.protection_rules[] | select(.type == "required_reviewers") | .reviewers[]] | length')
+          if [ "$reviewers" -lt 1 ]; then
+            echo 'Configure required environment reviewers before releasing.' >&2; exit 1
+          fi
+      - uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Resolve a previously validated artifact
+        id: existing
+        env:
+          IMAGE: ghcr.io/onlydrey/pdf-toolkit
+        run: |
+          set -euo pipefail
+          if docker buildx imagetools inspect "$IMAGE:sha-$GITHUB_SHA" > /tmp/manifest 2>/tmp/manifest-error; then
+            echo 'reuse=true' >> "$GITHUB_OUTPUT"
+          elif grep -Eqi 'manifest unknown|not found' /tmp/manifest-error; then
+            echo 'reuse=false' >> "$GITHUB_OUTPUT"
+          else
+            cat /tmp/manifest-error >&2; exit 1
+          fi
+      - name: Build candidate (no moving or version tag yet)
+        if: steps.existing.outputs.reuse != 'true'
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: ./app
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ghcr.io/onlydrey/pdf-toolkit:sha-${{ github.sha }}
+          provenance: mode=max
+          sbom: true
+          labels: |
+            org.opencontainers.image.source=https://github.com/OnlyDrey/pdf-toolkit
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ needs.version.outputs.version }}
+            org.opencontainers.image.licenses=MIT
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - id: candidate
+        run: |
+          digest=$(docker buildx imagetools inspect "ghcr.io/onlydrey/pdf-toolkit:sha-$GITHUB_SHA" --format '{{.Manifest.Digest}}')
+          echo "ref=ghcr.io/onlydrey/pdf-toolkit@$digest" >> "$GITHUB_OUTPUT"
+      - name: Scan amd64 candidate before promotion
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
+        env:
+          TRIVY_PLATFORM: linux/amd64
+          TRIVY_USERNAME: ${{ github.actor }}
+          TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          image-ref: ${{ steps.candidate.outputs.ref }}
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+      - name: Scan arm64 candidate before promotion
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
+        env:
+          TRIVY_PLATFORM: linux/arm64
+          TRIVY_USERNAME: ${{ github.actor }}
+          TRIVY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          image-ref: ${{ steps.candidate.outputs.ref }}
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+      - name: Promote the scanned digest
+        env:
+          CANDIDATE: ${{ steps.candidate.outputs.ref }}
+          VERSION: ${{ needs.version.outputs.version }}
+          CHANNEL: ${{ needs.version.outputs.channel }}
+        run: |
+          set -euo pipefail
+          image=ghcr.io/onlydrey/pdf-toolkit
+          # Beta's channel is computed from a strict tag parser and cannot be latest.
+          docker buildx imagetools create --tag "$image:$VERSION" --tag "$image:$CHANNEL" "$CANDIDATE"
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+          CHANNEL: ${{ needs.version.outputs.channel }}
+          CANDIDATE: ${{ steps.candidate.outputs.ref }}
+        run: |
+          printf 'Container: `%s`\n\nUse the digest for reproducible deployments.\n' "$CANDIDATE" > /tmp/release-notes.md
+          args=()
+          if [ "$CHANNEL" = beta ]; then args+=(--prerelease --latest=false); else args+=(--latest); fi
+          gh release create "$TAG" --verify-tag --generate-notes --notes-file /tmp/release-notes.md "${args[@]}"
