@@ -8,7 +8,7 @@ RUN --mount=type=secret,id=proxy_ca \
 COPY . .
 RUN npm run build
 
-FROM nginx/nginx-unprivileged:1.30.6-alpine-slim@sha256:984a21e29bb10d4c0e122374b97b89a2101823a9331e0f3c6c04bc285ccf447f AS runner
+FROM nginx/nginx-unprivileged:1.31.8-alpine-slim@sha256:629d3227f39ec10201345e420e2d9d430e463a9893d374b515a8eb6541e71938 AS runner
 COPY --chmod=644 nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=builder /app/dist /usr/share/nginx/html
 USER 101:101
