@@ -8,7 +8,8 @@ import {
 } from 'node:fs'
 import { createHash } from 'node:crypto'
 import { resolve } from 'node:path'
-import { pathToFileURL } from 'node:url'
+import { pathToFileURL, fileURLToPath, URL } from 'node:url'
+import { execFileSync } from 'node:child_process'
 
 const basePattern = '(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)'
 const baseVersion = new RegExp(`^${basePattern}$`)
@@ -44,20 +45,30 @@ export function releaseInputs(event) {
 }
 export function nextVersion(base, channel, tags) {
   releaseInputs({ name: 'workflow_dispatch', channel, version: base })
-  if (channel === 'production') return base
-  const pattern = new RegExp(
-    `^v${base.replaceAll('.', '\\.')}\\-beta\\.(0|[1-9][0-9]*)$`,
+  const python =
+    process.env.RELEASE_PYTHON ||
+    (process.platform === 'win32' ? 'python' : 'python3')
+  const result = execFileSync(
+    python,
+    [
+      fileURLToPath(new URL('./release.py', import.meta.url)),
+      '--resolve-version',
+    ],
+    {
+      input: JSON.stringify({
+        base_version: base,
+        channel,
+        // GitHub lists Git tags; local manifests are handled by the same Python engine.
+        tags: tags.filter(
+          (tag) => typeof tag === 'string' && tag.startsWith('v'),
+        ),
+      }),
+      encoding: 'utf8',
+      timeout: 10000,
+      stdio: ['pipe', 'pipe', 'pipe'],
+    },
   )
-  let highest = 0n
-  for (const tag of tags) {
-    const match = pattern.exec(tag)
-    if (match && match[0] === tag)
-      highest = BigInt(match[1]) > highest ? BigInt(match[1]) : highest
-  }
-  const version = `${base}-beta.${highest + 1n}`
-  if (version.length > 128)
-    throw new Error('Calculated version exceeds the registry tag limit')
-  return version
+  return JSON.parse(result).version
 }
 export function validatePlan(plan) {
   const expected = releaseInputs({

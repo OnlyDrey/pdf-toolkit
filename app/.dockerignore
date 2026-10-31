@@ -4,3 +4,9 @@ playwright-report
 test-results
 .env*
 *.tsbuildinfo
+releases
+.release-work
+__pycache__
+*.pyc
+/scripts
+/tests

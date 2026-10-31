@@ -3,3 +3,7 @@ node_modules
 dist
 playwright-report
 test-results
+releases
+.release-work
+__pycache__
+*.pyc
