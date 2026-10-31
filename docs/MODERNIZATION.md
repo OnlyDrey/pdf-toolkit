@@ -38,7 +38,7 @@ Open Dependabot PRs target `main`: [#8](https://github.com/OnlyDrey/pdf-toolkit/
 
 ## Compatible update validation
 
-Autoprefixer 10.6.2 installs without peer overrides; `npm ls --all`, the production TypeScript/Vite build and npm audit pass. The lockfile changes only Autoprefixer's entry/root pin and its metadata. No other direct package has a compatible newer stable release, and the transitive audit found no newer compatible installed ranges requiring a separate refresh. The audit still reports zero vulnerabilities.
+Autoprefixer 10.6.2 installs without peer overrides; `npm ls --all`, the production TypeScript/Vite build and npm audit pass. The lockfile changes only Autoprefixer's entry/root pin and its metadata. No other direct package has a compatible newer stable release, and the broad-peer suggestions for Node typings, TypeScript and jiti are evaluated with their toolchains. The Tailwind migration below replaces the older jiti loader. The audit still reports zero vulnerabilities.
 
 ## Tailwind 4 migration
 
@@ -76,3 +76,13 @@ Docker/local parity checks also identified Tailwind's automatic discovery of dif
 Targeted workflow validation passes actionlint, 38 release-policy tests and 32 engine tests (one Windows-only skip). No workflow is dispatched. Upstream Action updates include dependency/security fixes and safer metadata-log handling; no application npm advisory existed at baseline, so none is claimed as newly remediated. Existing security overrides and scan severity gates remain intact.
 
 The final scoped frontend still matches all 72 baseline screenshots pixel-for-pixel. Native AMD64 multi-stage Docker build, startup/health, UID 101, read-only assets, security headers, SPA fallback and worker MIME checks pass. Docker and local Vite emit the same CSS asset hash. Trivy's official GHCR database reports zero HIGH/CRITICAL runtime findings. An intermediate rebuild exhausted the managed filesystem; pruning unused BuildKit cache allowed the final build to complete. No dependency/scan gate was bypassed. ARM64 base manifests are verified; ARM64 runtime and real hosted Actions execution remain external checks.
+
+## Final complete regression
+
+The shared Python engine's `all` action passed on the clean Docker/Actions phase commit `53c0c52fc9488e1009c5667f7fb0759f8ba65f44`. It ran TypeScript checks, ESLint, Prettier, 40 application unit tests, 38 release-policy tests, 32 engine tests (one Windows-only test skipped), the production build, all 10 desktop/mobile browser cases against the actual read-only Nginx container and a fresh online npm audit (zero vulnerabilities). No redundant dependency installation or Actions run was needed.
+
+The local beta package records full validation as `passed`, its exact clean source SHA, tool/platform metadata and a remotely checked version. Independent verification passed for both frontend/release ZIPs, the manifest, payload checksums and transport ZIP sidecar. Offline version allocation/failure behavior remains covered by engine tests. Packages are local files, not published Git tags/images/releases.
+
+Container checks and both Compose definitions pass. Trivy reports zero HIGH/CRITICAL findings in the final runtime image. Local/container CSS SHA256 is identical: `cdb6f3c2ed4be3b2bc2a132dcff2247dbe74110450a443e2d2a5e4b2520ff541`. The final scoped CSS matches all 72 pre-migration screenshots pixel-for-pixel. actionlint and local YAML/permission/source/approval contracts pass; all Action pins were verified against upstream commits and input manifests. Local documentation links resolve.
+
+Remaining validation boundaries: this host does not execute Windows PowerShell 5.1 or ARM64 containers. Their launchers, lockfile platform entries, CI matrix and multi-platform manifests are preserved, but native Windows/ARM64 runs are not claimed. Hosted Action runtime/artifact integration and protected release publication require separately authorized external runs. No Actions minutes are consumed here. The existing large Vite chunk warning remains; no unrelated bundle/UI redesign was introduced.
