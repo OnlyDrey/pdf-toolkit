@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next'
 import { ActiveToolContext } from '@/lib/active-tool-context'
 import { useState, useCallback } from 'react'
 import { ThemeProvider } from '@/components/layout/ThemeProvider'
@@ -14,6 +15,7 @@ import { Crop } from '@/components/tools/Crop'
 import { VersionFix } from '@/components/tools/VersionFix'
 
 export default function App() {
+  const { t } = useTranslation()
   const [activeTab, setActiveTab] = useState<ToolTab>('merge')
   const [session, setSessionState] = useState<SessionFile | null>(null)
   const setSession = useCallback(
@@ -25,13 +27,21 @@ export default function App() {
     <SessionContext.Provider value={{ session, setSession, clearSession }}>
       <ThemeProvider>
         <div className="min-h-screen bg-background">
+          <a href="#main-content" className="skip-link">
+            {t('common.skipToContent')}
+          </a>
           <Header />
           <NavTabs activeTab={activeTab} onTabChange={setActiveTab} />
           <SessionBar />
-          <main className="mx-auto max-w-5xl px-4 py-8">
+          <main
+            id="main-content"
+            tabIndex={-1}
+            className="mx-auto max-w-5xl px-4 py-8"
+          >
             <div
               id="tool-panel-merge"
               role="tabpanel"
+              tabIndex={0}
               aria-labelledby="tool-tab-merge"
               className={activeTab === 'merge' ? '' : 'hidden'}
             >
@@ -42,6 +52,7 @@ export default function App() {
             <div
               id="tool-panel-compress"
               role="tabpanel"
+              tabIndex={0}
               aria-labelledby="tool-tab-compress"
               className={activeTab === 'compress' ? '' : 'hidden'}
             >
@@ -52,6 +63,7 @@ export default function App() {
             <div
               id="tool-panel-extract"
               role="tabpanel"
+              tabIndex={0}
               aria-labelledby="tool-tab-extract"
               className={activeTab === 'extract' ? '' : 'hidden'}
             >
@@ -62,6 +74,7 @@ export default function App() {
             <div
               id="tool-panel-rotate"
               role="tabpanel"
+              tabIndex={0}
               aria-labelledby="tool-tab-rotate"
               className={activeTab === 'rotate' ? '' : 'hidden'}
             >
@@ -72,6 +85,7 @@ export default function App() {
             <div
               id="tool-panel-resize"
               role="tabpanel"
+              tabIndex={0}
               aria-labelledby="tool-tab-resize"
               className={activeTab === 'resize' ? '' : 'hidden'}
             >
@@ -82,6 +96,7 @@ export default function App() {
             <div
               id="tool-panel-crop"
               role="tabpanel"
+              tabIndex={0}
               aria-labelledby="tool-tab-crop"
               className={activeTab === 'crop' ? '' : 'hidden'}
             >
@@ -92,6 +107,7 @@ export default function App() {
             <div
               id="tool-panel-versionFix"
               role="tabpanel"
+              tabIndex={0}
               aria-labelledby="tool-tab-versionFix"
               className={activeTab === 'versionFix' ? '' : 'hidden'}
             >

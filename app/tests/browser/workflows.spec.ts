@@ -28,18 +28,21 @@ async function apply(page: Page) {
       .filter({ hasText: 'working file updated' }),
   ).toBeVisible()
 }
-async function result(page: Page) {
+async function downloadBytes(page: Page) {
   const download = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Download', exact: true }).click()
   const file = await download
   const stream = await file.createReadStream()
   const chunks: Buffer[] = []
   for await (const chunk of stream!) chunks.push(Buffer.from(chunk))
-  return PDFDocument.load(Buffer.concat(chunks))
+  return Buffer.concat(chunks)
+}
+async function result(page: Page) {
+  return PDFDocument.load(await downloadBytes(page))
 }
 test.beforeEach(async ({ page }) => {
   await page.goto('/')
-  await page.getByRole('button', { name: 'English', exact: true }).click()
+  await page.getByRole('button', { name: 'EN English', exact: true }).click()
 })
 test('merge, session switch, extract, rotate, resize, crop and download', async ({
   page,
@@ -147,11 +150,11 @@ test('theme, language, keyboard upload and responsive layout', async ({
 }) => {
   await page.getByRole('button', { name: 'Dark', exact: true }).click()
   await expect(page.locator('html')).toHaveClass(/dark/)
-  await page.getByRole('button', { name: 'Norwegian', exact: true }).click()
+  await page.getByRole('button', { name: 'NO Norwegian', exact: true }).click()
   await expect(
     page.getByRole('tab', { name: 'Slå sammen', exact: true }),
   ).toBeVisible()
-  await page.getByRole('button', { name: 'Engelsk', exact: true }).click()
+  await page.getByRole('button', { name: 'EN Engelsk', exact: true }).click()
   const drop = visibleTool(page).getByRole('button', {
     name: 'Drag & drop PDF files here, or click to browse',
   })
@@ -190,4 +193,102 @@ test('repeated operations use the current result and invalid ranges cannot use s
     'Check your page range',
   )
   expect((await result(page)).getPageCount()).toBe(2)
+})
+
+test('VersionFix allows lower and higher headers without rewriting document contents', async ({
+  page,
+}) => {
+  await page.getByRole('tab', { name: 'Version Fix', exact: true }).click()
+  const input = await pdf('header.pdf')
+  await upload(page, input)
+  const target = visibleTool(page).getByRole('combobox', {
+    name: 'Target version',
+  })
+  await target.click()
+  await page.getByRole('option', { name: 'PDF 1.4 -', exact: false }).click()
+  await expect(
+    visibleTool(page).getByText('An older header', { exact: false }),
+  ).toBeVisible()
+  await apply(page)
+  const lower = await downloadBytes(page)
+  expect(lower.subarray(0, 8).toString()).toBe('%PDF-1.4')
+  expect(lower.subarray(8)).toEqual(input.buffer.subarray(8))
+  await target.click()
+  await page.getByRole('option', { name: 'PDF 2.0 -', exact: false }).click()
+  await apply(page)
+  expect((await downloadBytes(page)).subarray(0, 8).toString()).toBe('%PDF-2.0')
+  await page.getByRole('button', { name: 'NO Norwegian', exact: true }).click()
+  await expect(
+    visibleTool(page).getByText('Endrer bare de tre versjonstegnene', {
+      exact: false,
+    }),
+  ).toBeVisible()
+})
+
+test('canonical navbar branding and favicon assets are served as real images', async ({
+  page,
+  request,
+}) => {
+  await expect(page.locator('header .brand-mark')).toHaveCSS(
+    'mask-image',
+    /brand-mark\.svg/,
+  )
+  for (const name of ['brand-mark.svg', 'favicon.svg']) {
+    const response = await request.get('/' + name)
+    expect(response.ok()).toBe(true)
+    expect(response.headers()['content-type']).toContain('image/svg+xml')
+    expect(await response.text()).toContain('<svg')
+  }
+  for (const [name, size] of [
+    ['favicon-16.png', 16],
+    ['favicon-32.png', 32],
+    ['apple-touch-icon.png', 180],
+  ] as const) {
+    const response = await request.get('/' + name)
+    expect(response.headers()['content-type']).toContain('image/png')
+    const bytes = await response.body()
+    expect(bytes.subarray(1, 4).toString()).toBe('PNG')
+    expect(bytes.readUInt32BE(16)).toBe(size)
+    expect(bytes.readUInt32BE(20)).toBe(size)
+  }
+})
+
+test('keyboard tabs, focus, document language and discard confirmation are predictable', async ({
+  page,
+}) => {
+  const merge = page.getByRole('tab', { name: 'Merge', exact: true })
+  await merge.focus()
+  await page.keyboard.press('ArrowRight')
+  const compress = page.getByRole('tab', { name: 'Compress', exact: true })
+  await expect(compress).toBeFocused()
+  await expect(compress).toHaveAttribute('aria-selected', 'true')
+  await expect(compress).toHaveCSS('outline-style', 'solid')
+  await expect(compress).toHaveCSS('border-left-width', '0px')
+  const controls = await compress.getAttribute('aria-controls')
+  await expect(page.locator('#' + controls)).toHaveAttribute('role', 'tabpanel')
+  await page.keyboard.press('Tab')
+  await expect(page.locator('#' + controls)).toBeFocused()
+  await page.getByRole('button', { name: 'NO Norwegian', exact: true }).click()
+  await expect(page.locator('html')).toHaveAttribute('lang', 'nb')
+  await page.getByRole('button', { name: 'EN Engelsk', exact: true }).click()
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en')
+  await page.getByRole('tab', { name: 'Rotate', exact: true }).click()
+  await upload(page, await pdf('confirm.pdf'))
+  await apply(page)
+  const discard = page.getByRole('button', { name: 'Discard', exact: true })
+  await discard.click()
+  const dialog = page.getByRole('alertdialog')
+  await expect(dialog).toBeVisible()
+  await expect(
+    dialog.getByRole('button', { name: 'Cancel', exact: true }),
+  ).toBeFocused()
+  await page.keyboard.press('Escape')
+  await expect(dialog).not.toBeVisible()
+  await expect(discard).toBeFocused()
+  await discard.click()
+  await dialog.getByRole('button', { name: 'Discard', exact: true }).click()
+  await expect(page.getByText('Working on:', { exact: false })).toHaveCount(0)
+  await expect(
+    page.getByRole('tab', { name: 'Rotate', exact: true }),
+  ).toBeFocused()
 })

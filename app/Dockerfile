@@ -6,7 +6,8 @@ COPY package.json package-lock.json ./
 RUN --mount=type=secret,id=proxy_ca \
     if [ -f /run/secrets/proxy_ca ]; then export NODE_EXTRA_CA_CERTS=/run/secrets/proxy_ca; fi; npm ci
 COPY . .
-RUN npm run build
+# Public files may arrive with a restrictive host umask; UID 101 must be able to read them.
+RUN npm run build && find dist -type d -exec chmod 755 {} + && find dist -type f -exec chmod 644 {} +
 
 FROM nginx/nginx-unprivileged:1.30.6-alpine-slim@sha256:984a21e29bb10d4c0e122374b97b89a2101823a9331e0f3c6c04bc285ccf447f AS runner
 COPY --chmod=644 nginx.conf /etc/nginx/conf.d/default.conf

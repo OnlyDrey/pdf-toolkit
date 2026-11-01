@@ -119,7 +119,7 @@ export function PdfPagePreview({
 
   return (
     <div
-      className={cn('relative inline-block', className)}
+      className={cn('relative inline-block max-w-full', className)}
       style={{
         transform: rotateDeg ? `rotate(${rotateDeg}deg)` : undefined,
         transition: 'transform 0.35s cubic-bezier(0.4,0,0.2,1)',
@@ -135,7 +135,12 @@ export function PdfPagePreview({
       )}
       <canvas
         ref={canvasRef}
-        className={cn('block rounded border shadow-xs', loading && 'hidden')}
+        role="img"
+        aria-label={t('common.previewPage', { page: pageNumber })}
+        className={cn(
+          'block max-w-full h-auto rounded border shadow-xs',
+          loading && 'hidden',
+        )}
       />
       {ready && children}
     </div>

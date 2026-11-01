@@ -1,5 +1,48 @@
 # Verification and remaining manual checks
 
+## VersionFix, branding, accessibility and beta channel — 2026-11-01
+
+The final code at `f84e097` passed the complete shared-engine regression locally with Node 24/Python 3.12 and system Chromium, targeting the freshly built hardened Nginx image. No Actions were dispatched and no images, tags or releases were published. The subsequent documentation commit records these results.
+
+| Check                                     | Result                                                                                                                                                                            |
+| ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| TypeScript, ESLint, Prettier              | Passed                                                                                                                                                                            |
+| Unit tests                                | 45 passed                                                                                                                                                                         |
+| Release-policy and mocked CLI integration | 67 passed; source pinning, reservations, permissions/approval and channel isolation retained                                                                                      |
+| Python engine                             | 44 passed, 4 Windows-only cases skipped (48 total)                                                                                                                                |
+| Browser workflows and accessibility       | 24 passed on desktop/Pixel 7; includes 56 tool/theme/language axe combinations and 10 additional state scans                                                                      |
+| Production build                          | Passed; existing large-bundle advisory remains                                                                                                                                    |
+| Fresh Docker multi-stage build            | Passed, native AMD64                                                                                                                                                              |
+| Hardened container                        | Healthy as UID/GID 101, read-only filesystem, security headers, SPA routes, PDF worker MIME and five branding assets passed                                                       |
+| npm audit                                 | Zero vulnerabilities                                                                                                                                                              |
+| Trivy runtime image                       | Zero HIGH/CRITICAL findings; official GHCR database, no suppression                                                                                                               |
+| Workflow/reference checks                 | actionlint passed all workflows; local documentation links and Bash syntax passed                                                                                                 |
+| Compose selection                         | Default/empty tag, latest-beta, stable/beta version pins, persistent .env, full-image override precedence, invalid reference rejection and preserved service settings passed      |
+| Local packaging                           | Complete provisional offline `9.9.2-beta.2`; manifest, inner artifact checksums, outer SHA256 sidecar, frontend/outer ZIP integrity and immutable packaged Compose default passed |
+| Cleanup                                   | Engine tests passed; real launcher dry-run planned owned generated artifacts without deletion                                                                                     |
+
+Packaging records clean source `f84e097c82aad74794ac25e095157c32d2df52e6` and `passed-offline`; the dependency audit was run separately online. This is a local validation artifact, not a reserved public version. Its outer ZIP SHA256 is `0cdcad4944c9d90e489e5ae2187a9c330ea0bcd32771189d959ef8deb7d4964b`. The failed earlier local attempt remains traceable and the allocator advanced the local beta number.
+
+The initial container regression correctly failed its two favicon cases because public files inherited private host permissions. Generated directories/files are now normalized to 0755/0644 in the builder, keeping root ownership and non-root execution. A new image build, targeted Nginx branding checks and the entire regression passed after the correction; no test or release gate was bypassed.
+
+Captured 72 before/after visual matrix states: desktop/mobile, both themes, both languages, empty state, every tool and the Resize menu. Representative captures were manually inspected for navigation, VersionFix, drop zones, toolbar/destructive hierarchy, Crop previews and menu layout. Four further production-container captures cover confirmation and keyboard focus. Expected differences are stronger boundaries/text, distinct inset tab focus with bottom-only selection, wrapping header/toolbar/actions at narrow widths, compact VersionFix details and a restrained readable Discard action. The navbar glyph preserves the original Lucide paths/proportions. No visual baselines were silently replaced and no unexplained differences remain in the inspected captures.
+
+Remaining limits: no actual Windows/PowerShell 5.1 run or ARM64 runtime verification was available. Reflow is tested at 320/640 CSS pixels and 200% root text size; real browser-chrome 200%/400% zoom, assistive technology and cross-browser/OS testing still need manual review. PDF previews are visual summaries. Header rewriting is not genuine compatibility conversion and can invalidate signatures; the reviewed conversion-engine options remain deferred. Automated axe success is not WCAG certification. External GHCR publication, GitHub approval behavior and multi-platform release builds remain intentionally unexecuted; existing production Environment/owner settings in the deployment guide still apply. Beta needs no Environment or new repository setting for latest-beta.
+
+| Phase                                     | Commit    |
+| ----------------------------------------- | --------- |
+| Audit and plan                            | `e0dc138` |
+| Bidirectional header-only VersionFix      | `4d08e45` |
+| Canonical logo and favicon assets         | `e4e21e1` |
+| Shared keyboard/focus/forms/feedback      | `ce3dcc2` |
+| Axe coverage and follow-up remediation    | `506d130` |
+| latest-beta and Compose channel selection | `75330be` |
+| Nginx asset permissions                   | `f84e097` |
+
+All phase commits contain `[skip ci]` and were pushed only to origin/work. Remote main remained `8066d72965f06af3466bf2fbf13f60d31106a7ed`, matching the starting ref.
+
+## Earlier baseline
+
 Validation was performed locally on 2026-10-31 with Node 24 and system Chromium. GitHub Actions was not manually dispatched and no release/image was published by this work.
 
 - TypeScript, ESLint and Prettier checks pass.

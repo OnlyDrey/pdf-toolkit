@@ -1,3 +1,4 @@
+import { ProcessingStatus } from './ProcessingStatus'
 import { useActiveTool } from '@/lib/active-tool-context'
 import { loadPdf, PdfInputError } from '@/lib/pdf-document'
 import { useState, useEffect, useRef } from 'react'
@@ -144,8 +145,10 @@ export function Rotate() {
           </CardTitle>
           <CardDescription>{t('tools.rotate.description')}</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <ProcessingStatus busy={processing} />
+        <CardContent aria-busy={processing} className="space-y-6">
           <FileDropZone
+            disabled={processing}
             onFiles={handleFile}
             hasFile={!!file}
             fileLabel={
@@ -182,12 +185,15 @@ export function Rotate() {
               <Separator />
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="angle">{t('tools.rotate.angle')}</Label>
+                  <Label htmlFor="rotate-angle">
+                    {t('tools.rotate.angle')}
+                  </Label>
                   <Select
+                    disabled={processing}
                     value={angle}
                     onValueChange={(v) => setAngle(v as RotationAngle)}
                   >
-                    <SelectTrigger id="angle">
+                    <SelectTrigger id="rotate-angle">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -204,12 +210,15 @@ export function Rotate() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="ps">{t('tools.rotate.applyTo')}</Label>
+                  <Label htmlFor="rotate-pages">
+                    {t('tools.rotate.applyTo')}
+                  </Label>
                   <Select
+                    disabled={processing}
                     value={pageSel}
                     onValueChange={(v) => setPageSel(v as PageSelection)}
                   >
-                    <SelectTrigger id="ps">
+                    <SelectTrigger id="rotate-pages">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -225,9 +234,10 @@ export function Rotate() {
               </div>
               {pageSel === 'range' && (
                 <div className="space-y-2">
-                  <Label htmlFor="pr">{t('common.pageRange')}</Label>
+                  <Label htmlFor="rotate-range">{t('common.pageRange')}</Label>
                   <Input
-                    id="pr"
+                    aria-describedby={error ? 'rotate-error' : undefined}
+                    id="rotate-range"
                     placeholder={t('common.pageRangePlaceholder')}
                     value={rangeInput}
                     onChange={(e) => setRangeInput(e.target.value)}
@@ -239,7 +249,8 @@ export function Rotate() {
           {error && (
             <div
               role="alert"
-              className="flex items-center gap-2 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive"
+              id="rotate-error"
+              className="flex items-center gap-2 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive-text"
             >
               <AlertCircle className="h-4 w-4 shrink-0" />
               {error}
@@ -254,7 +265,7 @@ export function Rotate() {
               {t('common.appliedToSession')}
             </div>
           )}
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button
               onClick={handleProcess}
               disabled={!file || processing}

@@ -1,3 +1,4 @@
+import { ProcessingStatus } from './ProcessingStatus'
 import { useActiveTool } from '@/lib/active-tool-context'
 import { loadPdf, PdfInputError } from '@/lib/pdf-document'
 import { useState, useEffect, useRef } from 'react'
@@ -142,8 +143,10 @@ export function Compress() {
           </CardTitle>
           <CardDescription>{t('tools.compress.description')}</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <ProcessingStatus busy={processing} />
+        <CardContent aria-busy={processing} className="space-y-6">
           <FileDropZone
+            disabled={processing}
             onFiles={handleFile}
             hasFile={!!file}
             fileLabel={
@@ -202,7 +205,8 @@ export function Compress() {
           {error && (
             <div
               role="alert"
-              className="flex items-center gap-2 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive"
+              id="compress-error"
+              className="flex items-center gap-2 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive-text"
             >
               <AlertCircle className="h-4 w-4 shrink-0" />
               {error}
@@ -217,7 +221,7 @@ export function Compress() {
               {t('common.appliedToSession')}
             </div>
           )}
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button
               onClick={handleProcess}
               disabled={!file || processing}

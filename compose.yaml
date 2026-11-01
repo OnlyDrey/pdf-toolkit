@@ -1,6 +1,6 @@
 services:
   pdf-toolkit:
-    image: ${PDF_TOOLKIT_IMAGE:-ghcr.io/onlydrey/pdf-toolkit:latest}
+    image: ${PDF_TOOLKIT_IMAGE:-ghcr.io/onlydrey/pdf-toolkit:${PDF_TOOLKIT_TAG:-latest}}
     ports:
       - '8080:8080'
     read_only: true

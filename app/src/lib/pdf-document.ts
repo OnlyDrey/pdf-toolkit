@@ -2,9 +2,7 @@ import { PDFDocument, PDFName } from 'pdf-lib'
 
 export const MAX_PDF_BYTES = 100 * 1024 * 1024
 export class PdfInputError extends Error {
-  constructor(
-    public code: 'invalid' | 'encrypted' | 'tooLarge' | 'version' | 'downgrade',
-  ) {
+  constructor(public code: 'invalid' | 'encrypted' | 'tooLarge' | 'version') {
     super(code)
   }
 }
@@ -29,21 +27,27 @@ export function detectVersion(bytes: Uint8Array): string | null {
   const header = new TextDecoder('ascii').decode(bytes.subarray(0, 16))
   return /^%PDF-(1\.[0-7]|2\.0)(?:\r\n|\r|\n)/.exec(header)?.[1] ?? null
 }
+/** Catalog overrides are reported, never rewritten as part of a header-only edit. */
+export async function readVersionInfo(bytes: Uint8Array) {
+  const header = detectVersion(bytes)
+  const doc = await loadPdf(bytes)
+  const value = doc.catalog
+    .get(PDFName.of('Version'))
+    ?.toString()
+    .replace(/^\//, '')
+  return {
+    header,
+    catalog: value && /^(1\.[0-7]|2\.0)$/.test(value) ? value : null,
+  }
+}
 /** Fixed-length header metadata edit only. Never rewrites offsets or converts features. */
 export async function rewriteVersion(
   bytes: Uint8Array,
   target: string,
 ): Promise<Uint8Array> {
-  const version = detectVersion(bytes)
-  if (!version || !/^(1\.[0-7]|2\.0)$/.test(target))
+  if (!detectVersion(bytes) || !/^(1\.[0-7]|2\.0)$/.test(target))
     throw new PdfInputError('version')
-  const doc = await loadPdf(bytes)
-  const catalogVersion = doc.catalog
-    .get(PDFName.of('Version'))
-    ?.toString()
-    .replace(/^\//, '')
-  const effective = Math.max(Number(version), Number(catalogVersion) || 0)
-  if (Number(target) < effective) throw new PdfInputError('downgrade')
+  await loadPdf(bytes)
   const result = new Uint8Array(bytes)
   result.set(new TextEncoder().encode(target), 5)
   return result

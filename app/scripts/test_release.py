@@ -299,7 +299,7 @@ class PackagingTests(EngineFixture):
         engine.args.action = "package"
         for key, value in changes.items():
             setattr(engine.args, key, value)
-        (self.repo / "compose.yaml").write_text("services:\n  pdf-toolkit:\n    image: ${PDF_TOOLKIT_IMAGE:-ghcr.io/onlydrey/pdf-toolkit:latest}\n")
+        (self.repo / "compose.yaml").write_text("services:\n  pdf-toolkit:\n    image: ${PDF_TOOLKIT_IMAGE:-ghcr.io/onlydrey/pdf-toolkit:${PDF_TOOLKIT_TAG:-latest}}\n")
         dist = self.repo / "app/dist"
         dist.mkdir(exist_ok=True)
         (dist / "index.html").write_text("<html>private frontend</html>")
@@ -322,7 +322,7 @@ class PackagingTests(EngineFixture):
         self.assertEqual(data["source"]["commit"], "a" * 40)
         self.assertTrue(data["provisional"])
         self.assertFalse(data["deterministic_archives"])
-        self.assertIn(":1.2.0-beta.1", (folder / "compose.yaml").read_text())
+        self.assertIn("${PDF_TOOLKIT_TAG:-1.2.0-beta.1}", (folder / "compose.yaml").read_text())
         with zipfile.ZipFile(folder / "pdf-toolkit-1.2.0-beta.1-frontend.zip") as archive:
             self.assertIn("index.html", archive.namelist())
             self.assertIsNone(archive.testzip())

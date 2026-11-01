@@ -10,7 +10,8 @@
     "rotate": "Rotate",
     "resize": "Resize",
     "crop": "Crop",
-    "versionFix": "Version Fix"
+    "versionFix": "Version Fix",
+    "tools": "PDF tools"
   },
   "session": {
     "working": "Working on",
@@ -19,7 +20,9 @@
     "clear": "Discard",
     "saveToSession": "Save to session",
     "useFile": "Session",
-    "use": "Use"
+    "use": "Use",
+    "confirmTitle": "Discard working file?",
+    "confirmDescription": "Download a copy first if you want to keep your changes."
   },
   "common": {
     "upload": "Upload",
@@ -53,7 +56,9 @@
     "close": "Close",
     "previewUnavailable": "Preview unavailable",
     "selectedPages": "{{count}} pages selected",
-    "pageLabel": "Page {{page}}"
+    "pageLabel": "Page {{page}}",
+    "skipToContent": "Skip to tool",
+    "previewPage": "PDF page {{page}} preview"
   },
   "theme": {
     "light": "Light",
@@ -73,7 +78,11 @@
       "action": "Merge into working file",
       "fileCount_one": "{{count}} file",
       "fileCount_other": "{{count}} files",
-      "minimumFiles": "Add at least 2 PDF files to merge."
+      "minimumFiles": "Add at least 2 PDF files to merge.",
+      "keyboardInstructions": "Press Space to pick up a file, arrow keys to move it, Space to drop, or Escape to cancel.",
+      "pickedUp": "Picked up {{name}}.",
+      "position": "Position {{position}} of {{count}}.",
+      "reorderDone": "File order updated."
     },
     "compress": {
       "title": "Compress PDF",
@@ -154,7 +163,11 @@
         "1.7": "PDF 1.7 - Acrobat 8, ISO 32000 (2006)",
         "2.0": "PDF 2.0 - ISO 32000-2 (2017)"
       },
-      "note": "Edits only the three version characters in the header. It does not convert features or prove PDF/A or version compatibility. Downgrades are blocked; a catalog version may override the header. Editing can invalidate signatures."
+      "note": "Edits only the three version characters in the header. Features stay unchanged; this is not compatibility conversion.",
+      "detailsTitle": "What does header-only mean?",
+      "details": "Older-reader support and PDF/A are not guaranteed. Unsupported features remain, a catalog version can override the header, and editing can invalidate digital signatures.",
+      "lowerWarning": "An older header does not make newer PDF features compatible with older readers.",
+      "catalogWarning": "The document catalog still declares PDF {{version}} and may override this header. Older-reader compatibility is not guaranteed."
     }
   },
   "errors": {
@@ -162,7 +175,7 @@
     "encrypted": "Encrypted PDFs are not supported. Decrypt a copy locally before using this tool.",
     "tooLarge": "The limit is 100 MiB per PDF or combined merge input. Split the document locally first.",
     "version": "A complete, supported PDF header must appear at the start of the file.",
-    "downgrade": "Lowering the version does not convert PDF features and is not supported.",
-    "processing": "The operation failed. Check your page range, margins and PDF, then try again."
+    "processing": "The operation failed. Check your page range, margins and PDF, then try again.",
+    "fileType": "Choose PDF files. Other file types are not supported."
   }
 }

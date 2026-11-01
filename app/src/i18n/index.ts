@@ -21,3 +21,10 @@ i18n
   })
 
 export default i18n
+
+const updateDocumentLanguage = (language: string) => {
+  if (typeof document !== 'undefined')
+    document.documentElement.lang = language.startsWith('nb') ? 'nb' : 'en'
+}
+i18n.on('languageChanged', updateDocumentLanguage)
+updateDocumentLanguage(i18n.resolvedLanguage || i18n.language || 'en')

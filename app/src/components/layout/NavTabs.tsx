@@ -57,13 +57,16 @@ const tabs: TabDef[] = [
 export function NavTabs({ activeTab, onTabChange }: NavTabsProps) {
   const { t } = useTranslation()
   return (
-    <div className="border-b bg-background">
+    <nav aria-label={t('nav.tools')} className="border-b bg-background">
       <div className="mx-auto max-w-5xl px-4">
         <Tabs
           value={activeTab}
           onValueChange={(v) => onTabChange(v as ToolTab)}
         >
-          <TabsList className="h-12 w-full justify-start overflow-x-auto rounded-none border-b-0 bg-transparent p-0">
+          <TabsList
+            aria-label={t('nav.tools')}
+            className="h-auto min-h-12 w-full flex-wrap justify-start rounded-none border-0 bg-transparent p-0"
+          >
             {tabs.map(({ id, icon, labelKey }) => (
               <TabsTrigger
                 key={id}
@@ -71,7 +74,7 @@ export function NavTabs({ activeTab, onTabChange }: NavTabsProps) {
                 id={`tool-tab-${id}`}
                 aria-controls={`tool-panel-${id}`}
                 aria-label={t(labelKey)}
-                className="flex h-12 items-center gap-2 rounded-none border-b-2 border-transparent px-4 py-0 text-sm font-medium data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+                className="tool-tab flex h-12 min-w-10 items-center gap-2 rounded-none border-x-0 border-t-0 border-b-2 border-transparent px-2 py-0 text-sm font-medium hover:bg-muted/50 lg:px-4 data-[state=active]:border-b-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
               >
                 {icon}
                 <span className="hidden sm:inline">{t(labelKey)}</span>
@@ -80,6 +83,6 @@ export function NavTabs({ activeTab, onTabChange }: NavTabsProps) {
           </TabsList>
         </Tabs>
       </div>
-    </div>
+    </nav>
   )
 }

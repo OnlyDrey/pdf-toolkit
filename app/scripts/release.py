@@ -652,11 +652,11 @@ class Engine:
                 if "index.html" not in archive.namelist() or archive.testzip() is not None:
                     raise ReleaseError("Frontend ZIP integrity check failed", 5)
         compose = (self.repo / "compose.yaml").read_text(encoding="utf-8")
-        old = "${PDF_TOOLKIT_IMAGE:-ghcr.io/onlydrey/pdf-toolkit:latest}"
+        old = "${PDF_TOOLKIT_IMAGE:-ghcr.io/onlydrey/pdf-toolkit:${PDF_TOOLKIT_TAG:-latest}}"
         if old not in compose:
             raise ReleaseError("Deployment Compose image template changed; refusing an unpinned package", 5)
         with (slot / "compose.yaml").open("x", encoding="utf-8", newline="\n") as stream:
-            stream.write(compose.replace(old, "${PDF_TOOLKIT_IMAGE:-ghcr.io/onlydrey/pdf-toolkit:" + plan["version"] + "}"))
+            stream.write(compose.replace("${PDF_TOOLKIT_TAG:-latest}", "${PDF_TOOLKIT_TAG:-" + plan["version"] + "}"))
         notes = f"# PDF Toolkit {plan['version']}\n\nSource: {source['commit']} (dirty: {source['dirty']})\n\nChannel: {plan['channel']}\n\nVersion provisional: {plan['provisional']}\n\nPDF processing remains client-side. Crop is not redaction. See the deployment guide for limitations.\n"
         with (slot / "release-notes.md").open("x", encoding="utf-8", newline="\n") as stream:
             stream.write(notes)

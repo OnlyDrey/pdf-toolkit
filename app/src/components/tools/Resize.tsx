@@ -1,3 +1,4 @@
+import { ProcessingStatus } from './ProcessingStatus'
 import { useActiveTool } from '@/lib/active-tool-context'
 import { loadPdf, PdfInputError } from '@/lib/pdf-document'
 import { useState, useEffect, useRef } from 'react'
@@ -175,8 +176,10 @@ export function Resize() {
           </CardTitle>
           <CardDescription>{t('tools.resize.description')}</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <ProcessingStatus busy={processing} />
+        <CardContent aria-busy={processing} className="space-y-6">
           <FileDropZone
+            disabled={processing}
             onFiles={handleFile}
             hasFile={!!file}
             fileLabel={
@@ -197,8 +200,8 @@ export function Resize() {
           {file && (
             <>
               <Separator />
-              <div className="flex items-end justify-center gap-6 py-2">
-                <div className="flex flex-col items-center gap-1">
+              <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-end gap-3 py-2">
+                <div className="flex min-w-0 flex-col items-center gap-1">
                   <p className="text-xs text-muted-foreground">
                     {t('tools.resize.previewOriginal')}
                   </p>
@@ -214,7 +217,7 @@ export function Resize() {
                   )}
                 </div>
                 <ArrowRight className="mb-10 h-5 w-5 shrink-0 text-muted-foreground" />
-                <div className="flex flex-col items-center gap-1">
+                <div className="flex min-w-0 flex-col items-center gap-1">
                   <p className="text-xs text-muted-foreground">
                     {t('tools.resize.previewTarget')}
                   </p>
@@ -222,7 +225,8 @@ export function Resize() {
                     className="flex items-center justify-center rounded border-2 border-dashed border-primary/60 bg-primary/5"
                     style={{
                       width: 130,
-                      height: Math.round(130 * (dstMm.h / dstMm.w)),
+                      maxWidth: '100%',
+                      aspectRatio: `${dstMm.w} / ${dstMm.h}`,
                     }}
                   >
                     <span className="text-xs font-semibold text-primary">
@@ -237,9 +241,15 @@ export function Resize() {
               <Separator />
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="ps">{t('tools.resize.paperSize')}</Label>
-                  <Select value={sizeId} onValueChange={setSizeId}>
-                    <SelectTrigger id="ps">
+                  <Label htmlFor="resize-paper">
+                    {t('tools.resize.paperSize')}
+                  </Label>
+                  <Select
+                    disabled={processing}
+                    value={sizeId}
+                    onValueChange={setSizeId}
+                  >
+                    <SelectTrigger id="resize-paper">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="max-h-72">
@@ -259,12 +269,15 @@ export function Resize() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="ori">{t('tools.resize.orientation')}</Label>
+                  <Label htmlFor="resize-orientation">
+                    {t('tools.resize.orientation')}
+                  </Label>
                   <Select
+                    disabled={processing}
                     value={orient}
                     onValueChange={(v) => setOrient(v as Orientation)}
                   >
-                    <SelectTrigger id="ori">
+                    <SelectTrigger id="resize-orientation">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -280,13 +293,16 @@ export function Resize() {
               </div>
               <div className="flex items-center gap-3">
                 <input
-                  id="sc"
+                  id="resize-scale"
                   type="checkbox"
                   checked={scale}
                   onChange={(e) => setScale(e.target.checked)}
-                  className="h-4 w-4 rounded border-border"
+                  className="h-6 w-6 rounded border-input accent-primary"
                 />
-                <Label htmlFor="sc" className="cursor-pointer">
+                <Label
+                  htmlFor="resize-scale"
+                  className="min-h-6 cursor-pointer"
+                >
                   {t('tools.resize.scaleContent')}
                 </Label>
               </div>
@@ -295,7 +311,8 @@ export function Resize() {
           {error && (
             <div
               role="alert"
-              className="flex items-center gap-2 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive"
+              id="resize-error"
+              className="flex items-center gap-2 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive-text"
             >
               <AlertCircle className="h-4 w-4 shrink-0" />
               {error}
@@ -310,7 +327,7 @@ export function Resize() {
               {t('common.appliedToSession')}
             </div>
           )}
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button
               onClick={handleProcess}
               disabled={!file || processing}

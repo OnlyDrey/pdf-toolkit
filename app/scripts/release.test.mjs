@@ -15,6 +15,7 @@ import process from 'node:process'
 import { createHash } from 'node:crypto'
 import {
   releaseInputs,
+  movingTags,
   nextVersion,
   resolveAndReserve,
   preflight,
@@ -161,7 +162,22 @@ test('only channel and base version select the application branch', async () => 
         runUrl,
       )
       assert.equal(plan.source_sha, channel === 'beta' ? work : main)
-      assert.equal(plan.image_channel, channel === 'beta' ? 'beta' : 'latest')
+      assert.deepEqual(
+        movingTags(plan),
+        channel === 'beta' ? ['latest-beta', 'beta'] : ['latest'],
+      )
+      assert.throws(
+        () =>
+          movingTags({
+            ...plan,
+            image_channel: channel === 'beta' ? 'latest' : 'latest-beta',
+          }),
+        /channel policy/,
+      )
+      assert.equal(
+        plan.image_channel,
+        channel === 'beta' ? 'latest-beta' : 'latest',
+      )
     }
   }
 })
@@ -363,7 +379,7 @@ for (const environment of [
     assert.ok(
       !fake.state.reads.some((path) => path.startsWith('/environments')),
     )
-    assert.equal(plan.image_channel, 'beta')
+    assert.equal(plan.image_channel, 'latest-beta')
   })
 
 test('missing production Environment defaults to actionable failure before reservation', async () => {
@@ -781,6 +797,18 @@ test('workflow publication condition requires validation/scans and any selected 
       publication.indexOf('docker/login-action'),
   )
   assert.match(publication, /verify-image/)
+  const aliases = publication.indexOf('release.mjs tags > moving-tags.txt')
+  assert.ok(aliases > publication.lastIndexOf('release.mjs publish-check'))
+  assert.ok(aliases < publication.indexOf('docker buildx imagetools create'))
+  assert.match(publication, /while IFS= read -r tag; do tag_args/)
+  assert.match(
+    publication,
+    /\[ "\$IMAGE_CHANNEL" = latest-beta \].*--prerelease --latest=false/,
+  )
+  assert.doesNotMatch(
+    publication,
+    /--tag "\$IMAGE:latest"|--tag "\$IMAGE:beta"/,
+  )
   assert.match(publication, /EXPECTED_ARCHIVE_SHA256/)
   assert.match(publication, /EXPECTED_BUNDLE_SHA256/)
   assert.equal(
@@ -898,6 +926,20 @@ test('CLI integration: beta prepares and authorizes with no Environment API acce
   )
   assert.equal(plan.environment, '')
   assert.equal(plan.approval_mode, 'dispatch')
+  assert.deepEqual(movingTags(plan), ['latest-beta', 'beta'])
+  const calls = fixture.read().calls.length
+  const aliases = fixture.run('tags')
+  assert.equal(aliases.status, 0, aliases.stderr)
+  assert.equal(aliases.stdout, 'latest-beta\nbeta\n')
+  assert.equal(
+    fixture.read().calls.length,
+    calls,
+    'tag selection must not publish or call GitHub',
+  )
+  assert.throws(
+    () => movingTags({ ...plan, image_channel: 'latest' }),
+    /channel policy/,
+  )
   fixture.update((state) => {
     state.heads.work = main
   })
@@ -906,6 +948,9 @@ test('CLI integration: beta prepares and authorizes with no Environment API acce
 test('CLI integration: production owner confirmation preserves the original reservation and denies other actors', (t) => {
   const fixture = cliFixture(t)
   assert.equal(fixture.run('prepare', 'production', 'owner').status, 0)
+  const aliases = fixture.run('tags', 'production', 'owner')
+  assert.equal(aliases.status, 0, aliases.stderr)
+  assert.equal(aliases.stdout, 'latest\n')
   const initial = fixture.run('publish-check', 'production', 'owner')
   assert.equal(initial.status, 1)
   assert.match(initial.stderr, /Owner confirmation required/)

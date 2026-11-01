@@ -10,7 +10,8 @@
     "rotate": "Roter",
     "resize": "Endre størrelse",
     "crop": "Beskjær",
-    "versionFix": "Versjonsfix"
+    "versionFix": "Versjonsfix",
+    "tools": "PDF-verktøy"
   },
   "session": {
     "working": "Arbeider med",
@@ -19,7 +20,9 @@
     "clear": "Forkast",
     "saveToSession": "Lagre til sesjon",
     "useFile": "Sesjon",
-    "use": "Bruk"
+    "use": "Bruk",
+    "confirmTitle": "Forkaste arbeidsfilen?",
+    "confirmDescription": "Last ned en kopi først hvis du vil beholde endringene."
   },
   "common": {
     "upload": "Last opp",
@@ -53,11 +56,13 @@
     "close": "Lukk",
     "previewUnavailable": "Forhåndsvisning utilgjengelig",
     "selectedPages": "{{count}} sider valgt",
-    "pageLabel": "Side {{page}}"
+    "pageLabel": "Side {{page}}",
+    "skipToContent": "Hopp til verktøy",
+    "previewPage": "Forhåndsvisning av PDF-side {{page}}"
   },
   "theme": {
     "light": "Lyst",
-    "dark": "Morkt",
+    "dark": "Mørkt",
     "system": "System"
   },
   "language": {
@@ -73,7 +78,11 @@
       "action": "Slå sammen til arbeidsfil",
       "fileCount_one": "{{count}} fil",
       "fileCount_other": "{{count}} filer",
-      "minimumFiles": "Legg til minst 2 PDF-filer for å sla sammen."
+      "minimumFiles": "Legg til minst 2 PDF-filer for å sla sammen.",
+      "keyboardInstructions": "Trykk mellomrom for å løfte en fil, piltastene for å flytte, mellomrom for å slippe eller Escape for å avbryte.",
+      "pickedUp": "Løftet {{name}}.",
+      "position": "Plass {{position}} av {{count}}.",
+      "reorderDone": "Filrekkefølgen er oppdatert."
     },
     "compress": {
       "title": "Komprimer PDF",
@@ -154,7 +163,11 @@
         "1.7": "PDF 1.7 - Acrobat 8 (2006)",
         "2.0": "PDF 2.0 - ISO 32000-2 (2017)"
       },
-      "note": "Endrer bare de tre versjonstegnene i filhodet. Konverterer ikke funksjoner og bekrefter ikke PDF/A- eller versjonskompatibilitet. Nedgradering er sperret; katalogversjonen kan overstyre filhodet. Endringer kan ugyldiggjøre signaturer."
+      "note": "Endrer bare de tre versjonstegnene i filhodet. Funksjonene beholdes; dette er ikke kompatibilitetskonvertering.",
+      "detailsTitle": "Hva betyr bare filhodet?",
+      "details": "Støtte i eldre lesere og PDF/A garanteres ikke. Ustøttede funksjoner beholdes, katalogversjonen kan overstyre filhodet, og endringen kan ugyldiggjøre digitale signaturer.",
+      "lowerWarning": "Et eldre filhode gjør ikke nyere PDF-funksjoner kompatible med eldre lesere.",
+      "catalogWarning": "Dokumentkatalogen angir fortsatt PDF {{version}} og kan overstyre filhodet. Kompatibilitet med eldre lesere garanteres ikke."
     }
   },
   "errors": {
@@ -162,7 +175,7 @@
     "encrypted": "Krypterte PDF-filer støttes ikke. Dekrypter en kopi lokalt før du bruker verktøyet.",
     "tooLarge": "Grensen er 100 MiB per PDF eller samlet ved sammenslåing. Del dokumentet lokalt først.",
     "version": "Et fullstendig, støttet PDF-hode må stå i starten av filen.",
-    "downgrade": "En lavere versjon konverterer ikke PDF-funksjoner og støttes ikke.",
-    "processing": "Operasjonen mislyktes. Kontroller sidevalg, marger og PDF-filen, og prøv igjen."
+    "processing": "Operasjonen mislyktes. Kontroller sidevalg, marger og PDF-filen, og prøv igjen.",
+    "fileType": "Velg PDF-filer. Andre filtyper støttes ikke."
   }
 }

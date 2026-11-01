@@ -48,17 +48,31 @@ describe('PDF input and header safety', () => {
     expect(detectVersion(bytes)).toBe('1.7')
     expect(detectVersion(result)).toBe('2.0')
     expect((await loadPdf(result)).getPageCount()).toBe(2)
-    await expect(rewriteVersion(bytes, '1.4')).rejects.toMatchObject({
-      code: 'downgrade',
-    })
+    const lower = await rewriteVersion(bytes, '1.4')
+    expect(detectVersion(lower)).toBe('1.4')
+    expect(lower.subarray(8)).toEqual(bytes.subarray(8))
+    expect(lower.subarray(0, 5)).toEqual(bytes.subarray(0, 5))
+    expect((await loadPdf(lower)).getPageCount()).toBe(2)
   })
-  it('honors catalog version overrides', async () => {
+  it('preserves catalog version overrides while changing only the header', async () => {
     const doc = await fixture()
     doc.catalog.set(PDFName.of('Version'), PDFName.of('2.0'))
-    await expect(rewriteVersion(await doc.save(), '1.7')).rejects.toMatchObject(
-      { code: 'downgrade' },
-    )
+    const bytes = await doc.save()
+    const result = await rewriteVersion(bytes, '1.4')
+    expect(detectVersion(result)).toBe('1.4')
+    expect(
+      (await loadPdf(result)).catalog.get(PDFName.of('Version'))?.toString(),
+    ).toBe('/2.0')
+    expect(result.subarray(8)).toEqual(bytes.subarray(8))
   })
+  it.each(['0.9', '1.8', '2.1', '1.4\n', 'v1.4'])(
+    'rejects unsupported target %s',
+    async (target) => {
+      await expect(
+        rewriteVersion(await (await fixture()).save(), target),
+      ).rejects.toMatchObject({ code: 'version' })
+    },
+  )
   it('rejects encrypted documents instead of bypassing encryption', async () => {
     const doc = await fixture()
     const encryption = doc.context.obj({
