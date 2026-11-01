@@ -88,6 +88,12 @@ Reserved tags are retained even if CI, scanning, approval or publication fails. 
 
 Plan artifacts are retained for 90 days and scanned image archives for seven days; annotated tags preserve the source/run trace after artifact expiry. A source-branch advance during validation or approval deliberately aborts publication. Retry as a new release with the current branch HEAD and a new version reservation. Partial uploads may leave a version image without a moving alias or GitHub Release: the summary/logs make that failure visible, and it requires explicit review rather than silent reuse.
 
+### Recovery from the Windows validation failure (run #2)
+
+The [0.0.2 beta run #2](https://github.com/OnlyDrey/pdf-toolkit/actions/runs/41282501433) reserved **`v0.0.2-beta.1`** before Windows validation failed. Its immutable annotated tag object is `240483fff407164537792a1efaf880c0edb4029f`, targeting source `01567d6eb8a8f6c93085b14e1a16644a2ac49045`. CI readiness correctly blocked building/scanning/publication; do not delete, move, reuse or overwrite this reservation.
+
+After this hotfix is accepted and a release is explicitly authorized, start a **new** manual dispatch with workflow ref **work**, channel **beta** and base version **0.0.2**. With the currently observed tags, automatic allocation selects **`v0.0.2-beta.2`** (Docker version `0.0.2-beta.2`); a concurrent/newer reservation may advance that number. The new run resolves current work HEAD and must pass Windows and Linux engine tests, full CI and both architecture scans. Rerunning the old failed run retains its old policy/source and does not pick up the hotfix. Do not bypass `ready` or remove Windows tests to publish. This implementation does not dispatch or publish anything.
+
 ### Required repository settings and permissions
 
 A repository administrator must:

@@ -14,6 +14,7 @@ import tempfile
 import uuid
 import re
 import shutil
+import stat
 import subprocess
 import sys
 import tarfile
@@ -25,6 +26,7 @@ from pathlib import Path
 MIN_PYTHON = (3, 11)
 PRODUCER = "pdf-toolkit-release"
 SCHEMA_VERSION = 1
+WINDOWS_REPARSE_POINT = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
 BASE = re.compile(r"(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\Z")
 DEFAULT_REPO = Path(__file__).resolve().parents[2]
 
@@ -70,21 +72,66 @@ def digest(path: Path) -> str:
         return hashlib.file_digest(stream, "sha256").hexdigest()
 
 
-def guarded_path(path: Path) -> Path:
+def reject_link(path: Path) -> None:
+    """Inspect the entry itself; 8.3 spelling/case changes do not indicate links.
+
+    Python 3.11 has no Path.is_junction(). Windows lstat exposes reparse-point
+    attributes without following junctions; reject those conservatively.
+    """
+    try:
+        metadata = path.lstat()
+    except FileNotFoundError:
+        return
+    if stat.S_ISLNK(metadata.st_mode) or getattr(metadata, "st_file_attributes", 0) & WINDOWS_REPARSE_POINT:
+        raise ReleaseError(f"Refusing symlink/junction/reparse-point path: {path}", 5)
+
+
+def canonical_root(path: Path) -> Path:
+    """Pin a selected root, allowing inherited aliases but not a linked leaf."""
     absolute = Path(os.path.abspath(path))
-    if os.path.normcase(str(absolute)) != os.path.normcase(str(absolute.resolve())):
-        raise ReleaseError(f"Refusing symlink/junction path: {path}", 5)
-    return absolute
+    reject_link(absolute)
+    return absolute.resolve()
+
+
+def guarded_path(path: Path, *, root: Path | None = None) -> Path:
+    """Validate generated paths using metadata, then compare canonical locations."""
+    if root is not None and ".." in path.parts:
+        raise ReleaseError(f"Refusing path traversal: {path}", 5)
+    absolute = Path(os.path.abspath(path))
+    for component in [*reversed(absolute.parents), absolute]:
+        reject_link(component)
+    canonical = absolute.resolve()
+    if root is not None:
+        boundary = guarded_path(root)
+        if canonical != boundary and boundary not in canonical.parents:
+            raise ReleaseError(f"Path escapes approved directory: {path}", 5)
+    return canonical
+
+
+def guarded_tree(path: Path):
+    """Walk without ever descending into symlinks or Windows junctions."""
+    root = guarded_path(path)
+    if not root.is_dir():
+        return
+    pending = [root]
+    while pending:
+        directory = guarded_path(pending.pop(), root=root)
+        with os.scandir(directory) as entries:
+            for entry in entries:
+                child = guarded_path(Path(entry.path), root=root)
+                yield child
+                if stat.S_ISDIR(child.lstat().st_mode):
+                    pending.append(child)
 
 
 class Engine:
     def __init__(self, args):
         self.args = args
-        self.repo = guarded_path(Path(args.source_dir or DEFAULT_REPO))
-        self.app = self.repo / "app"
+        self.repo = canonical_root(Path(args.source_dir or DEFAULT_REPO))
+        self.app = guarded_path(self.repo / "app", root=self.repo)
         if not (self.app / "package.json").is_file():
             raise ReleaseError("Source directory must contain app/package.json", 3)
-        self.output = guarded_path(Path(args.output_dir).expanduser() if args.output_dir else self.app / "releases")
+        self.output = canonical_root(Path(args.output_dir).expanduser() if args.output_dir else self.app / "releases")
         protected = [self.repo / ".git", self.app / "src", self.app / "scripts", self.app / "tests", self.app / "public", self.app / "node_modules", self.app / "dist", self.app / ".release-work", self.app / "test-results", self.app / "playwright-report", self.repo / "docs", self.repo / ".github"]
         if self.output in [self.repo, self.app, *self.repo.parents] or any(self.output == p or p in self.output.parents for p in protected):
             raise ReleaseError("Output directory must not replace source or repository directories", 5)
@@ -131,8 +178,10 @@ class Engine:
 
     def local_versions(self):
         versions = []
+        guarded_path(self.output)
         if self.output.exists():
             for child in self.output.iterdir():
+                child = guarded_path(child, root=self.output)
                 match = re.fullmatch(r"pdf-toolkit-([0-9].*?)(?:\.zip(?:\.sha256)?)?", child.name)
                 if match:
                     versions.append(match[1])
@@ -218,10 +267,9 @@ class Engine:
             roots.append(self.repo / "compose.yaml")
         files = []
         for root in roots:
+            root = guarded_path(root)
             if root.exists():
-                guarded_path(root)
-                for file in (root.rglob("*") if root.is_dir() else [root]):
-                    guarded_path(file)
+                for file in (guarded_tree(root) if root.is_dir() else [root]):
                     if file.is_file() and "__pycache__" not in file.parts and file.suffix != ".pyc":
                         files.append(file)
         files = sorted(set(files))
@@ -291,32 +339,48 @@ class Engine:
             (self.app / ".release-work/validation.json").write_text(json.dumps({"inputs": original, "status": status}), encoding="utf-8")
 
     def clean(self):
+        guarded_path(self.app)
+        guarded_path(self.output)
         if (self.app / ".release-work/build.lock").exists():
             raise ReleaseError("A build lock exists; inspect the active/stale build before cleaning", 5)
-        paths = [self.app / name for name in ("dist", "test-results", "playwright-report", ".release-work")]
+        candidates = [(self.app / name, self.app) for name in ("dist", "test-results", "playwright-report", ".release-work")]
         if self.output.exists():
             for child in self.output.iterdir():
-                marker = child / ".release-owner.json"
-                if child.is_dir() and not child.is_symlink() and marker.is_file():
+                child = guarded_path(child, root=self.output)
+                if not child.is_dir():
+                    continue
+                marker = guarded_path(child / ".release-owner.json", root=child)
+                if marker.is_file():
                     try:
                         owner = json.loads(marker.read_text(encoding="utf-8"))
                         if owner.get("producer") != PRODUCER or child.name != "pdf-toolkit-" + owner.get("version", ""):
                             continue
-                        manifest = child / "release-manifest.json"
+                        manifest = guarded_path(child / "release-manifest.json", root=child)
                         allowed = {".release-owner.json", ".release-failure.json", "release-manifest.json", "SHA256SUMS"}
                         if manifest.is_file():
                             allowed.update(item["path"] for item in json.loads(manifest.read_text(encoding="utf-8")).get("artifacts", []))
                         if any(item.name not in allowed for item in child.iterdir()):
                             print("Preserve release directory containing unknown files: " + str(child))
                             continue
-                        paths.append(child)
-                        paths.extend(guarded_path(self.output / (child.name + suffix)) for suffix in (".zip", ".zip.sha256") if (self.output / (child.name + suffix)).is_file())
+                        candidates.append((child, self.output))
+                        for suffix in (".zip", ".zip.sha256"):
+                            bundle = guarded_path(self.output / (child.name + suffix), root=self.output)
+                            if bundle.is_file():
+                                candidates.append((bundle, self.output))
                     except (OSError, ValueError, KeyError):
                         pass
-        paths = [guarded_path(path) for path in paths if path.exists()]
+        paths = []
+        boundaries = {}
+        for candidate, boundary in candidates:
+            path = guarded_path(candidate, root=boundary)
+            if path in (self.app, self.output):
+                raise ReleaseError("Refusing to remove an approved root itself", 5)
+            if path.exists():
+                paths.append(path)
+                boundaries[path] = boundary
         for path in paths:
-            if any(item.is_symlink() or guarded_path(item) != item.absolute() for item in path.rglob("*")):
-                raise ReleaseError(f"Refusing to clean a directory containing symlinks: {path}", 5)
+            for _ in guarded_tree(path):
+                pass
             if self.git("ls-files", "--", str(path), optional=not (self.repo / ".git").exists()):
                 raise ReleaseError(f"Refusing to remove tracked files: {path}", 5)
         for path in paths:
@@ -326,6 +390,10 @@ class Engine:
         for path in paths:
             print(("DRY RUN remove " if self.args.dry_run else "Remove ") + str(path))
             if not self.args.dry_run:
+                # Confirmation may take time: revalidate pinned roots and contents.
+                guarded_path(path, root=boundaries[path])
+                for _ in guarded_tree(path):
+                    pass
                 if path.is_dir():
                     shutil.rmtree(path)
                 else:
@@ -349,6 +417,7 @@ class Engine:
         return {"channel": channel, "base_version": base, "version": version, "tag": data["tag"], "provisional": False, "remote_tags_checked": False, "version_authority": "provided-plan"}
 
     def reserve(self):
+        guarded_path(self.output)
         plan = self.supplied_plan() or self.choose_version()
         source = self.source()
         source["inputs_sha256"] = self.fingerprint()
@@ -576,8 +645,7 @@ class Engine:
                 raise ReleaseError("Build assets changed before packaging", 4)
             frontend = slot / ("pdf-toolkit-" + plan["version"] + "-frontend.zip")
             with zipfile.ZipFile(frontend, "x", compression=zipfile.ZIP_DEFLATED) as archive:
-                for path in sorted((self.app / "dist").rglob("*")):
-                    guarded_path(path)
+                for path in sorted(guarded_tree(self.app / "dist")):
                     if path.is_file():
                         archive.write(path, path.relative_to(self.app / "dist").as_posix())
             with zipfile.ZipFile(frontend) as archive:

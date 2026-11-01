@@ -57,7 +57,7 @@ Default output is the ignored `app/releases/` directory. Each version has a `pdf
 
 A complete release ZIP and its `.zip.sha256` sidecar are stored beside that directory. `SHA256SUMS` covers the manifest and payload files; the manifest lists payload hashes without recursively hashing itself. The outer ZIP sidecar covers the transport archive. Schema version 1 records source SHA/branch/dirty state/input fingerprint, tool versions, host platform, Docker platforms/format, validation status, provisional status and payload sizes/SHA256 hashes. Checksum data detects corruption; it is not a cryptographic approval signature. Archives are **not promised byte-identical across operating systems**.
 
-Source changes during preparation abort the release. Failed slots/manifests remain traceable and consume their version. Builds in one checkout use a lock; inspect a stale `app/.release-work/build.lock` before removing it manually. `clean --yes --non-interactive` removes known generated directories and owned release slots/bundles, preserves unknown output files or notes added inside a release, and refuses tracked or symlink/junction paths. Inspect with `clean --dry-run` first.
+Source changes during preparation abort the release. Failed slots/manifests remain traceable and consume their version. Builds in one checkout use a lock; inspect a stale `app/.release-work/build.lock` before removing it manually. `clean --yes --non-interactive` removes known generated directories and owned release slots/bundles, preserves unknown output files or notes added inside a release, and refuses tracked files and symlink/junction/reparse points inside generated trees. Inspect with `clean --dry-run` first.
 
 ## Docker builds and exports
 
@@ -108,3 +108,11 @@ After successful scans, the workflow uses the shared engine to package the pinne
 CI adds standard-library engine tests on Ubuntu and Windows, with the Windows launcher invoked by **Windows PowerShell 5.1**. The aggregate `ready` check requires both platforms. Workflow policy tests require Python 3.11+ as well as Node 24. These jobs run only when CI is requested by repository triggers; implementing them does not dispatch Actions.
 
 A supplied `--release-plan` is an internal packaging handoff, not evidence of approval. It must match the checkout SHA and valid channel/version; only the protected workflow authorizes registry/new-release publication. Local production confirmation authorizes artifact creation only.
+
+## Windows paths and cleanup boundaries
+
+Source/output roots are canonicalized once, so legitimate Windows temporary directories, spaces, case normalization and 8.3 aliases such as `RUNNER~1` do not count as links. Inherited parent aliases/junctions are resolved when choosing those roots. A selected root that is itself a symlink/junction/reparse point is rejected, as are linked descendants such as `app/dist/junction`. Paths remain pinned to their canonical roots afterward.
+
+The guard checks `lstat` metadata: Unix symlink mode and Windows `FILE_ATTRIBUTE_REPARSE_POINT` (also available on Python 3.11, without `Path.is_junction()`). It never infers a junction merely because `resolve()` changes a name. Traversal below approved roots is rejected; generated-tree walks check entries before descending. Cleanup validates canonical containment, preserves unknown and tracked data and rechecks targets after confirmation. External output directories remain supported when explicitly selected; cleanup removes only owned releases inside them, not their parent/sibling directories or the output root itself.
+
+Windows tests use ordinary temporary directories and `GetShortPathNameW`; real junction tests use `mklink /J` without requesting elevation. Hosts without 8.3 support/junction creation report explicit skips. Actual symlink tests skip on Windows if Developer Mode/symlink privilege is unavailable. The real PowerShell 5.1 forwarding test runs only on Windows; Linux results do not establish native Windows validation.
