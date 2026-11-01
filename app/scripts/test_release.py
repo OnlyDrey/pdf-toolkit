@@ -6,12 +6,14 @@ import zipfile
 import json
 import os
 import shutil
+import stat
 import subprocess
 import sys
 import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
+from types import SimpleNamespace
 
 SCRIPT = Path(__file__).with_name("release.py")
 spec = importlib.util.spec_from_file_location("release_engine", SCRIPT)
@@ -116,6 +118,179 @@ class EngineTests(EngineFixture):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("DRY RUN", result.stdout)
         self.assertEqual(subprocess.run([*command, "invalid"], capture_output=True).returncode, 2)
+        package = subprocess.run([*command, "package", "--dry-run", "--channel", "beta", "--version", "1.2.0", "--offline", "--non-interactive", "--source-dir", str(self.repo), "--output-dir", str(self.repo / "output with spaces")], capture_output=True, text=True)
+        self.assertEqual(package.returncode, 0, package.stderr)
+        self.assertIn("output with spaces", package.stdout)
+
+
+class PathSafetyTests(EngineFixture):
+    def symlink(self, link, target, directory=False):
+        try:
+            link.symlink_to(target, target_is_directory=directory)
+        except OSError:
+            if os.name == "nt":
+                self.skipTest("Windows symlinks require Developer Mode or symlink privilege")
+            raise
+
+    def junction(self, link, target):
+        result = subprocess.run(["cmd.exe", "/d", "/c", "mklink", "/J", str(link), str(target)], capture_output=True, text=True)
+        if result.returncode:
+            self.skipTest("Host does not support unprivileged directory junction creation: " + result.stderr.strip())
+        self.addCleanup(lambda: link.rmdir() if link.exists() else None)
+
+    def test_normal_temporary_paths_and_spaces_are_accepted(self):
+        engine = self.engine("--output-dir", str(self.repo / "release output with spaces"))
+        self.assertEqual(engine.repo, self.repo.resolve())
+        self.assertEqual(engine.output, (self.repo / "release output with spaces").resolve())
+        self.assertEqual(release.guarded_path(self.repo), self.repo.resolve())
+
+    def test_changed_canonical_spelling_is_not_evidence_of_a_link(self):
+        short = self.repo / "RUNNER~1"
+        long = self.repo / "runner profile"
+        short.mkdir()
+        long.mkdir()
+        original = Path.resolve
+        def resolve(path, *args, **kwargs):
+            return long if path == short else original(path, *args, **kwargs)
+        with patch.object(Path, "resolve", resolve):
+            self.assertEqual(release.guarded_path(short), long)
+
+    def test_reparse_metadata_is_rejected_without_string_comparison(self):
+        directory = self.repo / "junction"
+        directory.mkdir()
+        original = Path.lstat
+        def lstat(path, *args, **kwargs):
+            return SimpleNamespace(st_mode=stat.S_IFDIR, st_file_attributes=0x400) if path == directory else original(path, *args, **kwargs)
+        with patch.object(Path, "lstat", lstat):
+            for path in (directory, directory / "child"):
+                with self.assertRaises(release.ReleaseError):
+                    release.guarded_path(path)
+
+    def test_actual_symlink_and_dangling_symlink_are_rejected(self):
+        target = self.repo / "target"
+        target.mkdir()
+        link = self.repo / "directory link"
+        self.symlink(link, target, True)
+        for operation in (release.guarded_path, release.canonical_root):
+            with self.assertRaises(release.ReleaseError):
+                operation(link)
+        with self.assertRaises(release.ReleaseError):
+            self.engine("--output-dir", str(link))
+        dangling = self.repo / "dangling"
+        self.symlink(dangling, self.repo / "absent")
+        with self.assertRaises(release.ReleaseError):
+            release.guarded_path(dangling)
+
+    def test_inherited_source_parent_alias_is_pinned_but_descendant_links_are_rejected(self):
+        parent = self.repo / "parent alias"
+        self.symlink(parent, self.repo / "app", True)
+        # The selected source directory's leaf is normal; its parent is an alias.
+        checkout = self.repo / "app/checkout"
+        (checkout / "app").mkdir(parents=True)
+        (checkout / "app/package.json").write_text('{"version":"1.2.0"}')
+        engine = release.Engine(release.parser().parse_args(["build", "--source-dir", str(parent / "checkout")]))
+        self.assertEqual(engine.repo, checkout.resolve())
+        with self.assertRaises(release.ReleaseError):
+            release.guarded_path(parent / "checkout", root=self.repo)
+        linked_app = checkout / "app/subdirectory link"
+        self.symlink(linked_app, self.repo, True)
+        with self.assertRaises(release.ReleaseError):
+            list(release.guarded_tree(engine.app))
+
+    def test_app_directory_cannot_be_a_link(self):
+        checkout = self.repo / "checkout"
+        checkout.mkdir()
+        self.symlink(checkout / "app", self.repo / "app", True)
+        with self.assertRaises(release.ReleaseError):
+            release.Engine(release.parser().parse_args(["build", "--source-dir", str(checkout)]))
+
+    def test_canonical_containment_rejects_traversal_and_sibling_prefixes(self):
+        output = self.repo / "release"
+        output.mkdir()
+        for path in (output / "../outside", self.repo / "release-other/file", self.repo / "outside"):
+            with self.subTest(path=path), self.assertRaises(release.ReleaseError):
+                release.guarded_path(path, root=output)
+        self.assertEqual(release.guarded_path(output / "file with spaces", root=output), (output / "file with spaces").resolve())
+
+    def test_tree_walk_does_not_descend_into_a_link(self):
+        tree = self.repo / "tree"
+        tree.mkdir()
+        outside = self.repo / "outside"
+        outside.mkdir()
+        (outside / "keep").write_text("keep")
+        self.symlink(tree / "link", outside, True)
+        original = os.scandir
+        visited = []
+        def scandir(path):
+            visited.append(Path(path))
+            return original(path)
+        with patch.object(release.os, "scandir", scandir), self.assertRaises(release.ReleaseError):
+            list(release.guarded_tree(tree))
+        self.assertNotIn(outside.resolve(), visited)
+        self.assertEqual((outside / "keep").read_text(), "keep")
+
+    @unittest.skipUnless(os.name == "nt", "Requires Windows GetShortPathNameW")
+    def test_windows_real_short_path_alias_and_protected_output(self):
+        import ctypes
+        from ctypes import wintypes
+        function = ctypes.WinDLL("kernel32", use_last_error=True).GetShortPathNameW
+        function.argtypes = [wintypes.LPCWSTR, wintypes.LPWSTR, wintypes.DWORD]
+        function.restype = wintypes.DWORD
+        long = self.repo.resolve()
+        size = function(str(long), None, 0)
+        self.assertGreater(size, 0)
+        buffer = ctypes.create_unicode_buffer(size)
+        self.assertGreater(function(str(long), buffer, size), 0)
+        short = Path(buffer.value)
+        if os.path.normcase(str(short)) == os.path.normcase(str(long)):
+            self.skipTest("8.3 aliases are disabled/unavailable on this volume")
+        engine = release.Engine(release.parser().parse_args(["build", "--source-dir", str(short)]))
+        self.assertEqual(engine.repo, long)
+        self.assertEqual(release.guarded_path(short), long)
+        self.assertEqual(engine.fingerprint(short / "app"), engine.fingerprint(long / "app"))
+        with self.assertRaises(release.ReleaseError):
+            release.Engine(release.parser().parse_args(["build", "--source-dir", str(long), "--output-dir", str(short / "app")]))
+
+    @unittest.skipUnless(os.name == "nt", "Requires Windows directory junctions")
+    def test_windows_actual_junction_and_descendant_are_rejected(self):
+        target = self.repo / "junction target"
+        target.mkdir()
+        engine = self.engine("--yes")
+        (engine.app / "dist").mkdir()
+        (target / "keep.txt").write_text("keep")
+        link = engine.app / "dist/junction"
+        self.junction(link, target)
+        for path in (link, link / "child"):
+            with self.subTest(path=path), self.assertRaises(release.ReleaseError):
+                release.guarded_path(path)
+        with self.assertRaises(release.ReleaseError):
+            self.engine("--output-dir", str(link))
+        with self.assertRaises(release.ReleaseError):
+            engine.clean()
+        self.assertEqual((target / "keep.txt").read_text(), "keep")
+
+    @unittest.skipUnless(os.name == "nt", "Requires Windows directory junctions")
+    def test_windows_inherited_parent_junction_allows_bounded_cleanup(self):
+        parent = self.repo / "real parent"
+        checkout = parent / "checkout"
+        (checkout / "app/dist").mkdir(parents=True)
+        (checkout / "app/package.json").write_text('{"version":"1.2.0"}')
+        (checkout / "app/dist/generated.txt").write_text("generated")
+        (parent / "keep.txt").write_text("keep")
+        link = self.repo / "inherited junction"
+        self.junction(link, parent)
+        engine = release.Engine(release.parser().parse_args(["clean", "--source-dir", str(link / "checkout"), "--output-dir", str(link / "release output"), "--yes", "--non-interactive"]))
+        self.assertEqual(engine.repo, checkout.resolve())
+        self.assertEqual(engine.output, (parent / "release output").resolve())
+        engine.output.mkdir()
+        slot = engine.output / "pdf-toolkit-1.2.0-beta.1"
+        slot.mkdir()
+        (slot / ".release-owner.json").write_text(json.dumps({"producer": release.PRODUCER, "version": "1.2.0-beta.1"}))
+        with patch.object(engine, "git", return_value=""):
+            engine.clean()
+        self.assertFalse(slot.exists())
+        self.assertFalse((checkout / "app/dist").exists())
+        self.assertEqual((parent / "keep.txt").read_text(), "keep")
 
 
 class PackagingTests(EngineFixture):
@@ -283,6 +458,60 @@ class PackagingTests(EngineFixture):
         with self.assertRaises(release.ReleaseError):
             engine.clean()
         self.assertEqual(outside.read_text(), "keep")
+
+    def test_cleanup_external_approved_output_preserves_siblings_and_unknown_files(self):
+        external = tempfile.TemporaryDirectory(prefix="pdf external output ")
+        self.addCleanup(external.cleanup)
+        parent = Path(external.name).resolve()
+        approved = parent / "approved release output"
+        engine = self.package_engine()
+        engine.output = self.engine("--output-dir", str(approved)).output
+        (parent / "outside.txt").write_text("keep outside")
+        engine.release()
+        (approved / "unknown.txt").write_text("keep unknown")
+        engine.clean()
+        self.assertTrue(approved.is_dir())
+        self.assertEqual((parent / "outside.txt").read_text(), "keep outside")
+        self.assertEqual((approved / "unknown.txt").read_text(), "keep unknown")
+        self.assertFalse((approved / "pdf-toolkit-1.2.0-beta.1").exists())
+
+    def test_cleanup_revalidates_output_root_after_initialization(self):
+        engine = self.package_engine()
+        outside = self.repo / "outside"
+        outside.mkdir()
+        (outside / "keep.txt").write_text("keep")
+        try:
+            engine.output.symlink_to(outside, target_is_directory=True)
+        except OSError:
+            if os.name == "nt":
+                self.skipTest("Windows symlink privilege is unavailable")
+            raise
+        with self.assertRaises(release.ReleaseError):
+            engine.clean()
+        self.assertEqual((outside / "keep.txt").read_text(), "keep")
+
+    def test_cleanup_revalidates_targets_after_confirmation(self):
+        engine = self.package_engine()
+        outside = self.repo / "outside"
+        outside.mkdir()
+        (outside / "keep.txt").write_text("keep")
+        def confirm(prompt):
+            shutil.rmtree(engine.app / "dist")
+            try:
+                (engine.app / "dist").symlink_to(outside, target_is_directory=True)
+            except OSError:
+                if os.name == "nt":
+                    self.skipTest("Windows symlink privilege is unavailable")
+                raise
+        with patch.object(engine, "confirm", side_effect=confirm), self.assertRaises(release.ReleaseError):
+            engine.clean()
+        self.assertEqual((outside / "keep.txt").read_text(), "keep")
+
+    def test_cleanup_preserves_tracked_generated_paths(self):
+        engine = self.package_engine()
+        with patch.object(engine, "git", return_value="tracked.txt"), self.assertRaises(release.ReleaseError):
+            engine.clean()
+        self.assertTrue((engine.app / "dist/index.html").exists())
 
     def test_docker_builder_platforms_and_no_push(self):
         engine = self.package_engine(platforms="linux/amd64,linux/arm64", docker_format="oci")
