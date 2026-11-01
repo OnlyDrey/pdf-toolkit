@@ -42,6 +42,7 @@ For a local container build, run `docker compose -f app/compose.local.yaml up --
 - [Cross-platform local builds and release packaging](docs/LOCAL_RELEASE.md)
 - [Deployment and manual release guide](docs/DEPLOYMENT.md)
 - [Dependency maintenance and CI cost](docs/DEPENDENCIES.md)
+- [Accessibility, VersionFix and branding](docs/ACCESSIBILITY.md)
 - [Verification and remaining manual checks](docs/VERIFICATION.md)
 - [Modernization audit](docs/AUDIT.md)
 
