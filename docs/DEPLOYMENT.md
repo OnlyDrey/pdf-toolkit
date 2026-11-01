@@ -9,13 +9,43 @@ docker compose pull
 docker compose up -d
 ```
 
-The default is the stable `latest` image. To deploy beta directly:
+Use the same Compose file for every channel:
 
 ```sh
-PDF_TOOLKIT_IMAGE=ghcr.io/onlydrey/pdf-toolkit:beta docker compose up -d --pull always
+# Production (default)
+docker compose up -d
+
+# Latest beta
+PDF_TOOLKIT_TAG=latest-beta docker compose up -d
+
+# Specific version
+PDF_TOOLKIT_TAG=1.2.0-beta.3 docker compose up -d
 ```
 
-For beta, set `PDF_TOOLKIT_IMAGE=ghcr.io/onlydrey/pdf-toolkit:beta` in `.env`. For stable, prefer an explicit version such as `ghcr.io/onlydrey/pdf-toolkit:1.2.0`, or preferably `ghcr.io/onlydrey/pdf-toolkit@sha256:<digest>` from its release notes. These are examples, not a claim that those releases exist. Make the GHCR package public for anonymous pulls, or authenticate with a credential restricted to package reads.
+These startup examples assume the chosen image is already pulled. For upgrades or a new channel, **pull the selected image before recreating the container**. Persist selection in a `.env` file beside `compose.yaml`:
+
+```dotenv
+PDF_TOOLKIT_TAG=latest-beta
+```
+
+```sh
+docker compose pull
+docker compose up -d
+```
+
+For a one-command environment override, prefix **both** pull and up with the same `PDF_TOOLKIT_TAG` value; a prefix applies only to that command. PowerShell 5.1 uses `$env:PDF_TOOLKIT_TAG='latest-beta'`, then the same pull/up commands. Unset/empty `PDF_TOOLKIT_TAG` defaults to `latest`. Use Docker-valid tags (no registry prefix or shell syntax).
+
+| GHCR tag       | Meaning                                            | Updated by             |
+| -------------- | -------------------------------------------------- | ---------------------- |
+| `latest`       | Latest stable production image                     | Production only        |
+| `latest-beta`  | Latest successfully validated/published beta image | Beta only              |
+| `beta`         | Backwards-compatible alias of `latest-beta`        | Beta only              |
+| `1.2.0`        | Immutable stable version                           | Its production release |
+| `1.2.0-beta.3` | Immutable beta version                             | Its beta release       |
+
+All refer to `ghcr.io/onlydrey/pdf-toolkit`. Version examples do not claim the releases exist. Moving aliases update only after validation, both architecture scans and required approval/confirmation. A failed pre-publication validation never advances them. Tags already reserved/published are never overwritten. Failed partial publication is recorded by the workflow; no unrelated image is reused.
+
+The advanced `PDF_TOOLKIT_IMAGE` override takes precedence over `PDF_TOOLKIT_TAG`, preserving digest pins and local loaded images. For example, set `PDF_TOOLKIT_IMAGE=ghcr.io/onlydrey/pdf-toolkit@sha256:<reviewed-digest>` in `.env`; unset it to resume channel selection. Make the GHCR package public for anonymous pulls, or authenticate with package-read credentials. No separate Beta/Production Compose files are needed.
 
 Nginx listens on port 8080 as UID/GID 101 and requires only writable `/tmp`. `/healthz` returns `ok`. Put a TLS reverse proxy in front for Internet deployments; configure HSTS at that HTTPS edge. Hashed assets cache for one year; HTML revalidates. Responses carry CSP, frame protection, MIME protection, referrer and permissions policies. No endpoint accepts documents or processes PDFs.
 
@@ -23,9 +53,9 @@ Images target `linux/amd64` and `linux/arm64`. Local native-platform startup is 
 
 ## Upgrade and rollback
 
-Record the currently deployed digest before upgrading. Change `PDF_TOOLKIT_IMAGE` to the reviewed version/digest, run `docker compose pull`, then `docker compose up -d`. Check `docker compose ps` and `curl -f http://localhost:8080/healthz`, then open the application and a representative PDF. Reload open browser tabs after an upgrade. Keep the prior image until checks pass.
+Record the currently deployed digest before upgrading. Change `PDF_TOOLKIT_TAG` to the reviewed version (or use `PDF_TOOLKIT_IMAGE` for a digest), run `docker compose pull`, then `docker compose up -d`. Check `docker compose ps` and `curl -f http://localhost:8080/healthz`, then open the application and a representative PDF. Reload open browser tabs after an upgrade. Keep the prior image until checks pass.
 
-To roll back, restore the previous image digest and run the same pull/up commands. There is no server-side document database or migration. Browser memory sessions are lost on refresh, so download ongoing work before upgrading. Moving `latest` and `beta` tags are convenient but do not provide reproducibility; digests do.
+To roll back, restore the previous image digest and run the same pull/up commands. There is no server-side document database or migration. Browser memory sessions are lost on refresh, so download ongoing work before upgrading. Moving `latest`, `latest-beta` and `beta` tags are convenient but do not provide reproducibility; digests do.
 
 ## Local development and container verification
 
@@ -60,13 +90,13 @@ There is no commit input, beta sequence field, manual Git tag step or confirmati
 
 Choose `channel: beta`, `version: 1.2.0`. At preparation time, the workflow resolves the current HEAD of **`work`** and records that exact SHA. It reads all existing Git tags for that base, finds the highest `v1.2.0-beta.N`, and reserves the next number, starting at 1. If the highest is `beta.4`, the new release is `v1.2.0-beta.5` and its Docker version is `1.2.0-beta.5`.
 
-The workflow branch selector chooses the release-policy code only: selecting `main` in that UI still builds `work` for Beta. Manual dispatch authorizes Beta: no beta Environment, reviewers or Environment API read is required. After full CI and both-platform build/scans, publication updates the versioned image and moving **`beta`** tag. Beta never writes `latest`.
+The workflow branch selector chooses the release-policy code only: selecting `main` in that UI still builds `work` for Beta. Manual dispatch authorizes Beta: no beta Environment, reviewers or Environment API read is required. After full CI and both-platform build/scans, publication updates the versioned image and moving **`latest-beta`** tag and backwards-compatible **`beta`** alias. Beta never writes `latest`.
 
 ### Production example
 
 Choose `channel: production`, `version: 1.2.0`. The application source is always the current HEAD of **`main`**, even if the workflow UI selector is `work`. The workflow reserves **`v1.2.0`**, validates the recorded SHA, and builds/scans its image. By default, a human must approve the protected **production** Environment before any GHCR publication or GitHub Release creation. When required reviewers are unavailable, a repository owner can explicitly configure the two-stage owner-operated model below; there is no automatic downgrade.
 
-Production publishes **`1.2.0`** and **`latest`**, with a stable GitHub Release. It never modifies `beta`. An existing stable tag or versioned release is rejected rather than reused or overwritten.
+Production publishes **`1.2.0`** and **`latest`**, with a stable GitHub Release. It never modifies `latest-beta` or `beta`. An existing stable tag or versioned release is rejected rather than reused or overwritten.
 
 ### Pipeline and immutable artifacts
 

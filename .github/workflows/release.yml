@@ -299,14 +299,17 @@ jobs:
           actual=$(docker buildx imagetools inspect "$IMAGE:$VERSION" --format '{{.Manifest.Digest}}')
           test "$actual" = "$EXPECTED_DIGEST"
           node release-policy/app/scripts/release.mjs publish-check
-          docker buildx imagetools create --tag "$IMAGE:$build_tag" --tag "$IMAGE:$IMAGE_CHANNEL" "$IMAGE@$EXPECTED_DIGEST"
+          node release-policy/app/scripts/release.mjs tags > moving-tags.txt
+          tag_args=(--tag "$IMAGE:$build_tag")
+          while IFS= read -r tag; do tag_args+=(--tag "$IMAGE:$tag"); done < moving-tags.txt
+          docker buildx imagetools create "${tag_args[@]}" "$IMAGE@$EXPECTED_DIGEST"
       - name: Create versioned GitHub Release with source and digest metadata
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           printf 'Version: `%s`\n\nSource: `%s`\n\nImage: `%s@%s`\n\nRun: %s/%s/actions/runs/%s\n' "$EXPECTED_TAG" "$EXPECTED_SOURCE_SHA" "$IMAGE" "$EXPECTED_DIGEST" "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" > release-notes.md
           args=()
-          if [ "$IMAGE_CHANNEL" = beta ]; then args+=(--prerelease --latest=false); else args+=(--latest); fi
+          if [ "$IMAGE_CHANNEL" = latest-beta ]; then args+=(--prerelease --latest=false); else args+=(--latest); fi
           gh release create "$EXPECTED_TAG" release-plan.json image-metadata.json "release-bundles/pdf-toolkit-$VERSION.zip" "release-bundles/pdf-toolkit-$VERSION.zip.sha256" --repo "$GITHUB_REPOSITORY" --verify-tag --title "$EXPECTED_TAG" --generate-notes --notes-file release-notes.md "${args[@]}"
   summary:
     name: Release result

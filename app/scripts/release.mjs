@@ -55,7 +55,7 @@ export function releaseInputs(event) {
     base_version: event.version,
     branch: event.channel === 'beta' ? 'work' : 'main',
     environment: event.channel === 'beta' ? '' : 'production',
-    image_channel: event.channel === 'beta' ? 'beta' : 'latest',
+    image_channel: event.channel === 'beta' ? 'latest-beta' : 'latest',
   }
 }
 export function nextVersion(base, channel, tags) {
@@ -153,6 +153,11 @@ async function productionEnvironment(github) {
     'Environment pagination limit exceeded; protection cannot be verified',
   )
 }
+export function movingTags(plan) {
+  validatePlan(plan)
+  return plan.channel === 'beta' ? ['latest-beta', 'beta'] : ['latest']
+}
+
 export async function approvalPolicy(channel, github, mode = 'environment') {
   if (channel === 'beta')
     return { approval_mode: 'dispatch', environment: '', approval_owner_id: '' }
@@ -541,7 +546,8 @@ async function main() {
       `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`
   )
     throw new Error('Artifact plan does not match this run')
-  if (mode === 'recheck') await preflight(plan, github, approvalMode)
+  if (mode === 'tags') process.stdout.write(movingTags(plan).join('\n') + '\n')
+  else if (mode === 'recheck') await preflight(plan, github, approvalMode)
   else if (mode === 'publish-check')
     await authorizePublication(plan, github, approvalMode)
   else if (['image', 'verify-image'].includes(mode)) {

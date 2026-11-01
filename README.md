@@ -19,7 +19,7 @@ docker compose pull
 docker compose up -d
 ```
 
-Open [localhost:8080](http://localhost:8080). The default image is `ghcr.io/onlydrey/pdf-toolkit:latest`. For beta or a pinned version, set `PDF_TOOLKIT_IMAGE` to `ghcr.io/onlydrey/pdf-toolkit:beta`, a reviewed version tag or an immutable digest. Images support AMD64 and ARM64, non-root execution, healthchecks and a read-only filesystem. See [deployment, upgrades and rollback](docs/DEPLOYMENT.md).
+Open [localhost:8080](http://localhost:8080). The default image is `ghcr.io/onlydrey/pdf-toolkit:latest`. Select beta with `PDF_TOOLKIT_TAG=latest-beta`, or pin a version with `PDF_TOOLKIT_TAG=1.2.0-beta.3` (also supported in `.env`). After changing the tag or upgrading a moving channel, run `docker compose pull` before `docker compose up -d`. Images support AMD64 and ARM64, non-root execution, healthchecks and a read-only filesystem. See [deployment, upgrades and rollback](docs/DEPLOYMENT.md).
 
 ## Development
 
