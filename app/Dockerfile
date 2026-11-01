@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-FROM node:24.22.1-alpine3.23@sha256:0468540aa58203ff9e40c2aab3907c52644ab818af6176b1c70a026137dc92a2 AS builder
+FROM node:24.22.2-alpine3.23@sha256:9b69af715c7f9d038150b54ccccbaeffa9064bbc93e2904c29591ca097316af1 AS builder
 WORKDIR /app
 COPY package.json package-lock.json ./
 # Optional CA for managed build environments; never retained in image layers.
