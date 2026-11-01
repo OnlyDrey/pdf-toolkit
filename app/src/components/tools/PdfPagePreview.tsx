@@ -135,7 +135,7 @@ export function PdfPagePreview({
       )}
       <canvas
         ref={canvasRef}
-        className={cn('block rounded border shadow-sm', loading && 'hidden')}
+        className={cn('block rounded border shadow-xs', loading && 'hidden')}
       />
       {ready && children}
     </div>

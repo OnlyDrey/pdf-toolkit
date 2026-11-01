@@ -45,7 +45,7 @@ export function FileDropZone({
           multiple ? t('common.dragDropMultiple') : t('common.dragDropHere')
         }
         className={cn(
-          'flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-border bg-muted/30 p-8 text-center transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+          'flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-border bg-muted/30 p-8 text-center transition-colors hover:bg-muted/50 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring',
           hasFile && 'border-primary/40 bg-primary/5',
           showSession && 'rounded-b-none border-b-0',
         )}
@@ -95,7 +95,7 @@ export function FileDropZone({
             e.stopPropagation()
             onUseSession!()
           }}
-          className="flex w-full items-center gap-2 rounded-b-lg border-2 border-t border-dashed border-primary/30 bg-primary/5 px-4 py-2.5 text-left transition-colors hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="flex w-full items-center gap-2 rounded-b-lg border-2 border-t border-dashed border-primary/30 bg-primary/5 px-4 py-2.5 text-left transition-colors hover:bg-primary/10 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
         >
           <FileText className="h-4 w-4 shrink-0 text-primary" />
           <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
