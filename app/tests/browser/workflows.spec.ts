@@ -224,3 +224,31 @@ test('VersionFix allows lower and higher headers without rewriting document cont
     }),
   ).toBeVisible()
 })
+
+test('canonical navbar branding and favicon assets are served as real images', async ({
+  page,
+  request,
+}) => {
+  await expect(page.locator('header .brand-mark')).toHaveCSS(
+    'mask-image',
+    /brand-mark\.svg/,
+  )
+  for (const name of ['brand-mark.svg', 'favicon.svg']) {
+    const response = await request.get('/' + name)
+    expect(response.ok()).toBe(true)
+    expect(response.headers()['content-type']).toContain('image/svg+xml')
+    expect(await response.text()).toContain('<svg')
+  }
+  for (const [name, size] of [
+    ['favicon-16.png', 16],
+    ['favicon-32.png', 32],
+    ['apple-touch-icon.png', 180],
+  ] as const) {
+    const response = await request.get('/' + name)
+    expect(response.headers()['content-type']).toContain('image/png')
+    const bytes = await response.body()
+    expect(bytes.subarray(1, 4).toString()).toBe('PNG')
+    expect(bytes.readUInt32BE(16)).toBe(size)
+    expect(bytes.readUInt32BE(20)).toBe(size)
+  }
+})

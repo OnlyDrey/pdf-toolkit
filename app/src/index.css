@@ -116,3 +116,9 @@
       'calt' 1;
   }
 }
+
+.brand-mark {
+  background-color: currentColor;
+  mask: url('/brand-mark.svg') center / contain no-repeat;
+  -webkit-mask: url('/brand-mark.svg') center / contain no-repeat;
+}

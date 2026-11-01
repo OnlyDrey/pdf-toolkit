@@ -1,4 +1,4 @@
-import { FileText, Sun, Moon, Monitor } from 'lucide-react'
+import { Sun, Moon, Monitor } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
@@ -22,7 +22,7 @@ export function Header() {
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 min-w-0">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <FileText className="h-5 w-5" />
+              <span aria-hidden="true" className="brand-mark h-5 w-5" />
             </div>
             <div className="min-w-0">
               <h1 className="text-xl font-bold leading-none tracking-tight">
