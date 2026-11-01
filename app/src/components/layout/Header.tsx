@@ -33,7 +33,7 @@ export function Header() {
               </p>
             </div>
           </div>
-          <div className="flex shrink-0 items-center gap-2">
+          <div className="flex max-w-full flex-wrap items-center gap-2">
             {/* Theme toggle: Sun / Moon / Monitor */}
             <div className="flex items-center rounded-md border p-0.5">
               {(['light', 'dark', 'system'] as Theme[]).map((th) => (
@@ -61,17 +61,15 @@ export function Header() {
                 variant={currentLang === 'en' ? 'default' : 'ghost'}
                 size="sm"
                 onClick={() => i18n.changeLanguage('en')}
-                aria-label={t('language.en')}
               >
-                EN
+                EN<span className="sr-only"> {t('language.en')}</span>
               </Button>
               <Button
                 variant={currentLang === 'nb' ? 'default' : 'ghost'}
                 size="sm"
                 onClick={() => i18n.changeLanguage('nb')}
-                aria-label={t('language.nb')}
               >
-                NO
+                NO<span className="sr-only"> {t('language.nb')}</span>
               </Button>
             </div>
           </div>

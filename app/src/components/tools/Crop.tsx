@@ -211,6 +211,7 @@ export function Crop() {
                   {t('tools.crop.preview')}
                 </p>
                 <PdfPagePreview
+                  className="overflow-hidden pointer-events-none"
                   file={file}
                   maxWidth={240}
                   onDimensions={handleDimensions}
@@ -258,7 +259,7 @@ export function Crop() {
               <div className="space-y-2">
                 <Label className="text-sm">{t('tools.crop.margins')}</Label>
                 <div className="flex flex-col items-center gap-2">
-                  <div className="w-28">
+                  <div className="w-28 max-w-full">
                     <Label
                       htmlFor="crop-top"
                       className="mb-1 block text-center text-xs text-muted-foreground"
@@ -275,8 +276,8 @@ export function Crop() {
                       className="text-center"
                     />
                   </div>
-                  <div className="flex w-full max-w-xs items-center justify-between gap-2">
-                    <div className="w-28">
+                  <div className="flex w-full max-w-xs flex-col items-center justify-between gap-2 min-[380px]:flex-row">
+                    <div className="w-28 max-w-full">
                       <Label
                         htmlFor="crop-left"
                         className="mb-1 block text-center text-xs text-muted-foreground"
@@ -293,10 +294,10 @@ export function Crop() {
                         className="text-center"
                       />
                     </div>
-                    <div className="flex h-14 w-16 items-center justify-center rounded-md border border-dashed border-border bg-muted/30 text-xs text-muted-foreground">
+                    <div className="hidden h-14 w-16 items-center justify-center min-[380px]:flex rounded-md border border-dashed border-border bg-muted/30 text-xs text-muted-foreground">
                       PDF
                     </div>
-                    <div className="w-28">
+                    <div className="w-28 max-w-full">
                       <Label
                         htmlFor="crop-right"
                         className="mb-1 block text-center text-xs text-muted-foreground"
@@ -314,7 +315,7 @@ export function Crop() {
                       />
                     </div>
                   </div>
-                  <div className="w-28">
+                  <div className="w-28 max-w-full">
                     <Label
                       htmlFor="crop-bottom"
                       className="mb-1 block text-center text-xs text-muted-foreground"
@@ -384,7 +385,7 @@ export function Crop() {
               {t('common.appliedToSession')}
             </div>
           )}
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button
               onClick={handleProcess}
               disabled={!file || processing}

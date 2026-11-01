@@ -62,7 +62,7 @@
   },
   "theme": {
     "light": "Lyst",
-    "dark": "Morkt",
+    "dark": "Mørkt",
     "system": "System"
   },
   "language": {
@@ -78,7 +78,11 @@
       "action": "Slå sammen til arbeidsfil",
       "fileCount_one": "{{count}} fil",
       "fileCount_other": "{{count}} filer",
-      "minimumFiles": "Legg til minst 2 PDF-filer for å sla sammen."
+      "minimumFiles": "Legg til minst 2 PDF-filer for å sla sammen.",
+      "keyboardInstructions": "Trykk mellomrom for å løfte en fil, piltastene for å flytte, mellomrom for å slippe eller Escape for å avbryte.",
+      "pickedUp": "Løftet {{name}}.",
+      "position": "Plass {{position}} av {{count}}.",
+      "reorderDone": "Filrekkefølgen er oppdatert."
     },
     "compress": {
       "title": "Komprimer PDF",

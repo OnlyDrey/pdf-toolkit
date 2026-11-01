@@ -78,7 +78,11 @@
       "action": "Merge into working file",
       "fileCount_one": "{{count}} file",
       "fileCount_other": "{{count}} files",
-      "minimumFiles": "Add at least 2 PDF files to merge."
+      "minimumFiles": "Add at least 2 PDF files to merge.",
+      "keyboardInstructions": "Press Space to pick up a file, arrow keys to move it, Space to drop, or Escape to cancel.",
+      "pickedUp": "Picked up {{name}}.",
+      "position": "Position {{position}} of {{count}}.",
+      "reorderDone": "File order updated."
     },
     "compress": {
       "title": "Compress PDF",

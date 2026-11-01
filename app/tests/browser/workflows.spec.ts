@@ -42,7 +42,7 @@ async function result(page: Page) {
 }
 test.beforeEach(async ({ page }) => {
   await page.goto('/')
-  await page.getByRole('button', { name: 'English', exact: true }).click()
+  await page.getByRole('button', { name: 'EN English', exact: true }).click()
 })
 test('merge, session switch, extract, rotate, resize, crop and download', async ({
   page,
@@ -150,11 +150,11 @@ test('theme, language, keyboard upload and responsive layout', async ({
 }) => {
   await page.getByRole('button', { name: 'Dark', exact: true }).click()
   await expect(page.locator('html')).toHaveClass(/dark/)
-  await page.getByRole('button', { name: 'Norwegian', exact: true }).click()
+  await page.getByRole('button', { name: 'NO Norwegian', exact: true }).click()
   await expect(
     page.getByRole('tab', { name: 'Slå sammen', exact: true }),
   ).toBeVisible()
-  await page.getByRole('button', { name: 'Engelsk', exact: true }).click()
+  await page.getByRole('button', { name: 'EN Engelsk', exact: true }).click()
   const drop = visibleTool(page).getByRole('button', {
     name: 'Drag & drop PDF files here, or click to browse',
   })
@@ -217,7 +217,7 @@ test('VersionFix allows lower and higher headers without rewriting document cont
   await page.getByRole('option', { name: 'PDF 2.0 -', exact: false }).click()
   await apply(page)
   expect((await downloadBytes(page)).subarray(0, 8).toString()).toBe('%PDF-2.0')
-  await page.getByRole('button', { name: 'Norwegian', exact: true }).click()
+  await page.getByRole('button', { name: 'NO Norwegian', exact: true }).click()
   await expect(
     visibleTool(page).getByText('Endrer bare de tre versjonstegnene', {
       exact: false,
@@ -268,9 +268,9 @@ test('keyboard tabs, focus, document language and discard confirmation are predi
   await expect(page.locator('#' + controls)).toHaveAttribute('role', 'tabpanel')
   await page.keyboard.press('Tab')
   await expect(page.locator('#' + controls)).toBeFocused()
-  await page.getByRole('button', { name: 'Norwegian', exact: true }).click()
+  await page.getByRole('button', { name: 'NO Norwegian', exact: true }).click()
   await expect(page.locator('html')).toHaveAttribute('lang', 'nb')
-  await page.getByRole('button', { name: 'Engelsk', exact: true }).click()
+  await page.getByRole('button', { name: 'EN Engelsk', exact: true }).click()
   await expect(page.locator('html')).toHaveAttribute('lang', 'en')
   await page.getByRole('tab', { name: 'Rotate', exact: true }).click()
   await upload(page, await pdf('confirm.pdf'))

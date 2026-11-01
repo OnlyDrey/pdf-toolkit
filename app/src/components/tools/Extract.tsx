@@ -327,7 +327,7 @@ export function Extract() {
               {t('common.appliedToSession')}
             </div>
           )}
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button
               onClick={handleProcess}
               disabled={!file || selected.size === 0 || processing}

@@ -181,7 +181,7 @@ export function Merge() {
         </CardHeader>
         <ProcessingStatus busy={processing} />
         <CardContent aria-busy={processing} className="space-y-6">
-          <FileDropZone multiple onFiles={handleFiles} />
+          <FileDropZone disabled={processing} multiple onFiles={handleFiles} />
           {entries.length > 0 && (
             <>
               <Separator />
@@ -196,6 +196,30 @@ export function Merge() {
                 </div>
                 <DndContext
                   sensors={sensors}
+                  accessibility={{
+                    screenReaderInstructions: {
+                      draggable: t('tools.merge.keyboardInstructions'),
+                    },
+                    announcements: {
+                      onDragStart: ({ active }) =>
+                        t('tools.merge.pickedUp', {
+                          name: entries.find((entry) => entry.id === active.id)
+                            ?.file.name,
+                        }),
+                      onDragOver: ({ over }) =>
+                        over
+                          ? t('tools.merge.position', {
+                              position:
+                                entries.findIndex(
+                                  (entry) => entry.id === over.id,
+                                ) + 1,
+                              count: entries.length,
+                            })
+                          : undefined,
+                      onDragEnd: () => t('tools.merge.reorderDone'),
+                      onDragCancel: () => t('common.cancel'),
+                    },
+                  }}
                   collisionDetection={closestCenter}
                   onDragEnd={handleDragEnd}
                 >
@@ -238,7 +262,7 @@ export function Merge() {
               {t('common.appliedToSession')}
             </div>
           )}
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button
               onClick={handleMerge}
               disabled={entries.length < 2 || processing}

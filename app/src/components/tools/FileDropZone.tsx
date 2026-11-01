@@ -66,11 +66,8 @@ export function FileDropZone({
         tabIndex={disabled ? -1 : 0}
         aria-disabled={disabled || undefined}
         aria-describedby={fileError ? errorId : undefined}
-        aria-label={
-          multiple ? t('common.dragDropMultiple') : t('common.dragDropHere')
-        }
         className={cn(
-          'flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-input bg-muted/30 p-8 text-center transition-colors hover:bg-muted/50 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring',
+          'flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-input bg-muted/30 p-4 sm:p-8 text-center transition-colors hover:bg-muted/50 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring',
           hasFile && 'border-primary bg-primary/5',
           dragging && 'border-primary bg-primary/10',
           disabled && 'cursor-wait opacity-60',

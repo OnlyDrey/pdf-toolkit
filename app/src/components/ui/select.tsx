@@ -3,7 +3,47 @@ import * as SelectPrimitive from '@radix-ui/react-select'
 import { Check, ChevronDown, ChevronUp } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-const Select = SelectPrimitive.Root
+function Select({
+  open: controlledOpen,
+  defaultOpen = false,
+  onOpenChange,
+  ...props
+}: React.ComponentProps<typeof SelectPrimitive.Root>) {
+  const [localOpen, setLocalOpen] = React.useState(defaultOpen)
+  const open = controlledOpen ?? localOpen
+  const previous = React.useRef<{ root: HTMLElement; inert: boolean } | null>(
+    null,
+  )
+  const restore = React.useCallback(() => {
+    if (previous.current) {
+      previous.current.root.inert = previous.current.inert
+      previous.current = null
+    }
+  }, [])
+  React.useEffect(() => {
+    // Radix portals the modal listbox outside #root. Native inert complements its
+    // aria-hidden/focus scope so hidden background controls cannot receive focus.
+    if (open) {
+      const root = document.getElementById('root')
+      if (root) {
+        previous.current = { root, inert: root.inert }
+        root.inert = true
+      }
+    }
+    return restore
+  }, [open, restore])
+  return (
+    <SelectPrimitive.Root
+      {...props}
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) restore()
+        setLocalOpen(next)
+        onOpenChange?.(next)
+      }}
+    />
+  )
+}
 const SelectGroup = SelectPrimitive.Group
 const SelectValue = SelectPrimitive.Value
 
