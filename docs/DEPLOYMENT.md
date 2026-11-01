@@ -139,7 +139,7 @@ Inputs are limited to 100 MiB per document or combined merge input. Memory use c
 
 Malformed, empty, unsupported and encrypted PDFs report errors. Decrypt a copy locally first. Complex forms, annotations, unusual fonts and signatures need manual reader checks; modifications can invalidate digital signatures. Structural compression does not reduce image quality and may yield little improvement. It reports the actual candidate size and retains the original bytes when the rewrite is not smaller.
 
-Crop changes the visible crop box in unrotated PDF coordinates; hidden content stays in the file. **Crop is not redaction.** Version Fix changes only the header's three version characters, checks the document and catalog version, and blocks downgrades. It does not convert features or establish reader compatibility or PDF/A conformance.
+Crop changes the visible crop box in unrotated PDF coordinates; hidden content stays in the file. **Crop is not redaction.** Version Fix changes only the header's three version characters, validates the PDF and allows higher or lower header values while preserving catalog overrides and every other byte. It does not convert features or establish reader compatibility or PDF/A conformance.
 
 ## Builds without GitHub Actions
 

@@ -28,14 +28,17 @@ async function apply(page: Page) {
       .filter({ hasText: 'working file updated' }),
   ).toBeVisible()
 }
-async function result(page: Page) {
+async function downloadBytes(page: Page) {
   const download = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Download', exact: true }).click()
   const file = await download
   const stream = await file.createReadStream()
   const chunks: Buffer[] = []
   for await (const chunk of stream!) chunks.push(Buffer.from(chunk))
-  return PDFDocument.load(Buffer.concat(chunks))
+  return Buffer.concat(chunks)
+}
+async function result(page: Page) {
+  return PDFDocument.load(await downloadBytes(page))
 }
 test.beforeEach(async ({ page }) => {
   await page.goto('/')
@@ -190,4 +193,34 @@ test('repeated operations use the current result and invalid ranges cannot use s
     'Check your page range',
   )
   expect((await result(page)).getPageCount()).toBe(2)
+})
+
+test('VersionFix allows lower and higher headers without rewriting document contents', async ({
+  page,
+}) => {
+  await page.getByRole('tab', { name: 'Version Fix', exact: true }).click()
+  const input = await pdf('header.pdf')
+  await upload(page, input)
+  const target = visibleTool(page).getByRole('combobox', {
+    name: 'Target version',
+  })
+  await target.click()
+  await page.getByRole('option', { name: 'PDF 1.4 -', exact: false }).click()
+  await expect(
+    visibleTool(page).getByText('An older header', { exact: false }),
+  ).toBeVisible()
+  await apply(page)
+  const lower = await downloadBytes(page)
+  expect(lower.subarray(0, 8).toString()).toBe('%PDF-1.4')
+  expect(lower.subarray(8)).toEqual(input.buffer.subarray(8))
+  await target.click()
+  await page.getByRole('option', { name: 'PDF 2.0 -', exact: false }).click()
+  await apply(page)
+  expect((await downloadBytes(page)).subarray(0, 8).toString()).toBe('%PDF-2.0')
+  await page.getByRole('button', { name: 'Norwegian', exact: true }).click()
+  await expect(
+    visibleTool(page).getByText('Endrer bare de tre versjonstegnene', {
+      exact: false,
+    }),
+  ).toBeVisible()
 })

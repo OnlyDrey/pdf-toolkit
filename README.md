@@ -8,7 +8,7 @@ Merge, extract, rotate, resize, crop, structurally compress and inspect PDF vers
 
 ## Privacy-first architecture
 
-React and PDF.js run locally in the browser; Nginx serves static assets. Documents are never uploaded and there is no telemetry. Working files stay in memory and are lost when the page closes or refreshes. Crop hides content rather than redacting it, and header edits do not convert PDF features. See the [limitations](docs/DEPLOYMENT.md#privacy-and-pdf-limitations).
+React and PDF.js run locally in the browser; Nginx serves static assets. Documents are never uploaded and there is no telemetry. Working files stay in memory and are lost when the page closes or refreshes. Crop hides content rather than redacting it, and header edits allow higher/lower values but do not convert PDF features. See the [limitations](docs/DEPLOYMENT.md#privacy-and-pdf-limitations).
 
 ## Docker Quick Start
 

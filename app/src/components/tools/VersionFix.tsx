@@ -1,6 +1,6 @@
 import { useActiveTool } from '@/lib/active-tool-context'
 import {
-  detectVersion,
+  readVersionInfo,
   rewriteVersion,
   PdfInputError,
 } from '@/lib/pdf-document'
@@ -53,6 +53,8 @@ export function VersionFix() {
   const { session, setSession } = useSession()
   const [file, setFile] = useState<File | null>(null)
   const [ffs, setFfs] = useState(false)
+  const detectionRequest = useRef(0)
+  const [catalog, setCatalog] = useState<string | null>(null)
   const [detected, setDetected] = useState<string | null>(null)
   const [targetVersion, setTargetVersion] = useState<PdfVersion>('1.7')
   const [processing, setProcessing] = useState(false)
@@ -62,11 +64,21 @@ export function VersionFix() {
   const [outName, setOutName] = useState('')
 
   const detect = async (f: File) => {
+    const request = ++detectionRequest.current
+    setDetected(null)
+    setCatalog(null)
     try {
       const buf = await readFileAsArrayBuffer(f)
-      setDetected(detectVersion(new Uint8Array(buf)))
+      const info = await readVersionInfo(new Uint8Array(buf))
+      if (request === detectionRequest.current) {
+        setDetected(info.header)
+        setCatalog(info.catalog)
+      }
     } catch {
-      setDetected(null)
+      if (request === detectionRequest.current) {
+        setDetected(null)
+        setCatalog(null)
+      }
     }
   }
 
@@ -161,9 +173,15 @@ export function VersionFix() {
           <CardDescription>{t('tools.versionFix.description')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <p className="text-sm text-muted-foreground">
+          <p id="version-note" className="text-sm text-muted-foreground">
             {t('tools.versionFix.note')}
           </p>
+          <details className="text-xs text-muted-foreground">
+            <summary className="cursor-pointer">
+              {t('tools.versionFix.detailsTitle')}
+            </summary>
+            <p className="mt-2">{t('tools.versionFix.details')}</p>
+          </details>
           <FileDropZone
             onFiles={handleFile}
             hasFile={!!file}
@@ -206,9 +224,18 @@ export function VersionFix() {
                   </Label>
                   <Select
                     value={targetVersion}
-                    onValueChange={(v) => setTargetVersion(v as PdfVersion)}
+                    onValueChange={(v) => {
+                      setTargetVersion(v as PdfVersion)
+                      setDone(false)
+                      setError(null)
+                      setOutBytes(null)
+                    }}
                   >
-                    <SelectTrigger id="tv" className="w-64">
+                    <SelectTrigger
+                      id="tv"
+                      aria-describedby="version-note version-warning"
+                      className="w-full sm:w-64"
+                    >
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -223,6 +250,17 @@ export function VersionFix() {
               </div>
             </>
           )}
+          <p
+            id="version-warning"
+            role="status"
+            className="text-sm text-muted-foreground"
+          >
+            {catalog && Number(catalog) > Number(targetVersion)
+              ? t('tools.versionFix.catalogWarning', { version: catalog })
+              : detected && Number(targetVersion) < Number(detected)
+                ? t('tools.versionFix.lowerWarning')
+                : ''}
+          </p>
           {error && (
             <div
               role="alert"
