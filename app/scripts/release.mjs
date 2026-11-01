@@ -15,6 +15,21 @@ const basePattern = '(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)'
 const baseVersion = new RegExp(`^${basePattern}$`)
 const shaPattern = /^[a-f0-9]{40}$/
 export class ReservationConflict extends Error {}
+export class GitHubApiError extends Error {
+  constructor(method, path, status) {
+    const advice =
+      status === 401
+        ? 'Check that GITHUB_TOKEN is present and valid.'
+        : status === 403
+          ? 'Check Actions/repository permissions, organization policy and API rate limits.'
+          : status === 404
+            ? 'GitHub may hide inaccessible resources as 404; verify repository access and Settings > Environments.'
+            : 'Check GitHub service availability before retrying the failed run.'
+    super(`GitHub ${method} ${path} failed (${status}). ${advice}`)
+    this.status = status
+    this.path = path
+  }
+}
 
 function assertSha(sha) {
   if (typeof sha !== 'string' || sha.length !== 40 || !shaPattern.test(sha))
@@ -39,7 +54,7 @@ export function releaseInputs(event) {
     channel: event.channel,
     base_version: event.version,
     branch: event.channel === 'beta' ? 'work' : 'main',
-    environment: event.channel === 'beta' ? 'beta' : 'production',
+    environment: event.channel === 'beta' ? '' : 'production',
     image_channel: event.channel === 'beta' ? 'beta' : 'latest',
   }
 }
@@ -77,8 +92,21 @@ export function validatePlan(plan) {
     version: plan.base_version,
   })
   for (const [key, value] of Object.entries(expected))
-    if (plan[key] !== value)
+    if (key !== 'environment' && plan[key] !== value)
       throw new Error('Release plan does not match channel policy')
+  if (
+    plan.channel === 'beta'
+      ? plan.approval_mode !== 'dispatch' ||
+        plan.environment !== '' ||
+        plan.approval_owner_id !== ''
+      : !['environment', 'owner'].includes(plan.approval_mode) ||
+        (plan.approval_mode === 'environment'
+          ? plan.environment !== 'production' || plan.approval_owner_id !== ''
+          : !['', 'production'].includes(plan.environment) ||
+            !Number.isSafeInteger(plan.approval_owner_id) ||
+            plan.approval_owner_id <= 0)
+  )
+    throw new Error('Invalid channel approval policy')
   assertSha(plan.source_sha)
   assertSha(plan.reservation_sha)
   const pattern = new RegExp(
@@ -95,19 +123,142 @@ export function validatePlan(plan) {
   )
     throw new Error('Invalid reserved version')
 }
-async function requireApproval(plan, github) {
-  const environment = await github(`/environments/${plan.environment}`)
-  const reviewers = environment.protection_rules?.find(
+async function productionEnvironment(github) {
+  const environment = await github('/environments/production', {
+    allowMissing: true,
+  })
+  if (environment) return environment
+  // A resource 404 alone cannot prove absence: GitHub also hides inaccessible resources.
+  for (let page = 1; page <= 100; page++) {
+    let listing
+    try {
+      listing = await github(`/environments?per_page=100&page=${page}`)
+    } catch (error) {
+      throw new Error(
+        `Cannot establish whether production protection exists. ${error.message} Grant Environment read access/check plan support; never select owner mode to bypass unreadable protection.`,
+        { cause: error },
+      )
+    }
+    if (!Array.isArray(listing.environments))
+      throw new Error(
+        'Invalid Environment listing; protection cannot be verified',
+      )
+    if (listing.environments.some((item) => item.name === 'production'))
+      throw new Error(
+        'Production Environment is listed but its protection is inaccessible. Fix Environment read permissions; no approval fallback is allowed.',
+      )
+    if (listing.environments.length < 100) return null
+  }
+  throw new Error(
+    'Environment pagination limit exceeded; protection cannot be verified',
+  )
+}
+export async function approvalPolicy(channel, github, mode = 'environment') {
+  if (channel === 'beta')
+    return { approval_mode: 'dispatch', environment: '', approval_owner_id: '' }
+  if (!['environment', 'owner'].includes(mode))
+    throw new Error(
+      'Set PRODUCTION_APPROVAL_MODE to environment (default) or owner explicitly',
+    )
+  const environment = await productionEnvironment(github)
+  if (environment && !Array.isArray(environment.protection_rules))
+    throw new Error(
+      'Unreadable production protection rules; no approval fallback is allowed',
+    )
+  const reviewers = environment?.protection_rules.find(
     (rule) => rule.type === 'required_reviewers',
   )
+  if (reviewers) {
+    if (
+      !reviewers.reviewers?.length ||
+      reviewers.prevent_self_review !== true ||
+      environment.can_admins_bypass !== false
+    )
+      throw new Error(
+        'Production Environment must require human reviewers, prevent self-review and disallow admin bypass; fix configured protection rather than falling back',
+      )
+    // Configured reviewer protection always wins over the owner-mode preference.
+    return {
+      approval_mode: 'environment',
+      environment: 'production',
+      approval_owner_id: '',
+    }
+  }
+  if (mode !== 'owner')
+    throw new Error(
+      'Production requires human reviewers. Configure the production Environment (prevent self-review/admin bypass), or explicitly set repository variable PRODUCTION_APPROVAL_MODE=owner when reviewers are unavailable. Beta needs no Environment.',
+    )
+  const repository = await github('/')
   if (
-    !reviewers?.reviewers?.length ||
-    reviewers.prevent_self_review !== true ||
-    environment.can_admins_bypass !== false
+    repository.owner?.type !== 'User' ||
+    !Number.isSafeInteger(repository.owner.id) ||
+    repository.owner.id <= 0
   )
     throw new Error(
-      'Environment must require human reviewers, prevent self-review and disallow admin bypass',
+      'Owner approval requires a personally owned repository; organizations must use protected Environment approval',
     )
+  return {
+    approval_mode: 'owner',
+    environment: environment ? 'production' : '',
+    approval_owner_id: repository.owner.id,
+  }
+}
+async function verifyOwner(plan, github, confirmation = false) {
+  const match =
+    /^https:\/\/github\.com\/OnlyDrey\/pdf-toolkit\/actions\/runs\/([1-9][0-9]*)$/.exec(
+      plan.run_url,
+    )
+  if (!match) throw new Error('Invalid owner approval workflow-run URL')
+  const run = await github(`/actions/runs/${match[1]}`)
+  if (
+    run.event !== 'workflow_dispatch' ||
+    run.html_url !== plan.run_url ||
+    run.actor?.id !== plan.approval_owner_id
+  )
+    throw new Error(
+      'Owner mode requires the repository owner to initiate this exact manual production run',
+    )
+  if (
+    confirmation &&
+    (run.triggering_actor?.id !== plan.approval_owner_id ||
+      !Number.isSafeInteger(run.run_attempt) ||
+      run.run_attempt < 2)
+  )
+    throw new Error(
+      `Owner confirmation required for ${plan.tag} at ${plan.source_sha}. Review successful CI, both scans and the recorded digest, then the repository owner must choose Re-run failed jobs on this same run. Do not rerun all jobs or dispatch the reserved version again.`,
+    )
+  if (confirmation) {
+    const builds = []
+    for (let page = 1; page <= 100; page++) {
+      const listing = await github(
+        `/actions/runs/${match[1]}/jobs?filter=all&per_page=100&page=${page}`,
+      )
+      if (!Array.isArray(listing.jobs))
+        throw new Error(
+          'Cannot verify successful build/scans before owner confirmation',
+        )
+      builds.push(
+        ...listing.jobs.filter((job) => job.name === 'Build and scan'),
+      )
+      if (listing.jobs.length < 100) break
+      if (page === 100)
+        throw new Error('Job pagination limit prevents owner confirmation')
+    }
+    builds.sort((left, right) => right.run_attempt - left.run_attempt)
+    const build = builds[0]
+    if (
+      !build ||
+      !Number.isSafeInteger(build.run_attempt) ||
+      build.run_attempt >= run.run_attempt ||
+      build.status !== 'completed' ||
+      build.conclusion !== 'success' ||
+      !run.head_sha ||
+      build.head_sha !== run.head_sha
+    )
+      throw new Error(
+        'Owner confirmation must occur after successful build/scans in an earlier attempt of this same workflow run. Review the finished artifacts, then choose Re-run failed jobs; a retry that rebuilds artifacts is not confirmation.',
+      )
+  }
 }
 async function branchHead(branch, github) {
   const ref = await github(`/git/ref/heads/${branch}`)
@@ -135,13 +286,23 @@ async function allTags(github) {
     'Tag pagination limit exceeded; refusing an incomplete version calculation',
   )
 }
-export async function resolveAndReserve(event, github, runUrl) {
+export async function resolveAndReserve(
+  event,
+  github,
+  runUrl,
+  approvalMode = 'environment',
+) {
   const policy = releaseInputs(event)
   const source = await branchHead(policy.branch, github)
   const commit = await github(`/commits/${source}`)
   if (commit.sha !== source)
     throw new Error('Source commit could not be resolved exactly')
-  await requireApproval(policy, github)
+  Object.assign(
+    policy,
+    await approvalPolicy(policy.channel, github, approvalMode),
+  )
+  if (policy.approval_mode === 'owner')
+    await verifyOwner({ ...policy, run_url: runUrl }, github)
   for (let attempt = 0; attempt < 3; attempt++) {
     const version = nextVersion(
       policy.base_version,
@@ -187,7 +348,7 @@ export async function resolveAndReserve(event, github, runUrl) {
     'Version reservation conflicted repeatedly; no existing tag was overwritten',
   )
 }
-export async function preflight(plan, github) {
+export async function preflight(plan, github, approvalMode = 'environment') {
   validatePlan(plan)
   await requireUnchangedSource(plan, github)
   const ref = await github(`/git/ref/tags/${plan.tag}`)
@@ -202,7 +363,37 @@ export async function preflight(plan, github) {
     throw new Error('Reserved tag does not identify the pinned source')
   if (await github(`/releases/tags/${plan.tag}`, { allowMissing: true }))
     throw new Error('Versioned GitHub Release already exists')
-  await requireApproval(plan, github)
+  let record
+  try {
+    record = JSON.parse(tag.message)
+  } catch {
+    throw new Error(
+      'Reserved tag has no readable release plan; start a new release',
+    )
+  }
+  const { reservation_sha: reservation, ...expected } = plan
+  if (
+    !reservation ||
+    !record ||
+    Object.keys(record).length !== Object.keys(expected).length ||
+    Object.entries(expected).some(([key, value]) => record[key] !== value)
+  )
+    throw new Error('Release plan differs from its immutable tag reservation')
+  const approval = await approvalPolicy(plan.channel, github, approvalMode)
+  if (Object.entries(approval).some(([key, value]) => plan[key] !== value))
+    throw new Error(
+      'Approval policy changed after reservation; start a new release without weakening configured protection',
+    )
+  if (plan.approval_mode === 'owner') await verifyOwner(plan, github)
+}
+
+export async function authorizePublication(
+  plan,
+  github,
+  approvalMode = 'environment',
+) {
+  await preflight(plan, github, approvalMode)
+  if (plan.approval_mode === 'owner') await verifyOwner(plan, github, true)
 }
 
 // Inspect the built OCI graph and give Trivy a single-platform layout for each scan.
@@ -277,7 +468,7 @@ export function inspectImage(layout, scanRoot, plan) {
     image_digest: root.digest,
   }
 }
-async function github(
+export async function github(
   path,
   { method = 'GET', body, allowMissing = false } = {},
 ) {
@@ -297,9 +488,16 @@ async function github(
       body: body ? JSON.stringify(body) : undefined,
     },
   )
-  if (allowMissing && response.status === 404) return null
   if (!response.ok) {
     const detail = await response.json().catch(() => ({}))
+    if (
+      allowMissing &&
+      response.status === 404 &&
+      !/not accessible|credentials|authentication|permission/i.test(
+        detail.message || '',
+      )
+    )
+      return null
     if (
       path === '/git/refs' &&
       method === 'POST' &&
@@ -307,12 +505,13 @@ async function github(
       /reference already exists/i.test(detail.message || '')
     )
       throw new ReservationConflict('Version reservation already exists')
-    throw new Error(`GitHub ${method} ${path} failed (${response.status})`)
+    throw new GitHubApiError(method, path, response.status)
   }
   return response.json()
 }
 async function main() {
   const mode = process.argv[2]
+  const approvalMode = process.env.PRODUCTION_APPROVAL_MODE || 'environment'
   if (mode === 'prepare') {
     const plan = await resolveAndReserve(
       {
@@ -322,13 +521,14 @@ async function main() {
       },
       github,
       `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`,
+      approvalMode,
     )
     writeFileSync('release-plan.json', JSON.stringify(plan, null, 2))
     for (const [key, value] of Object.entries(plan))
       appendFileSync(process.env.GITHUB_OUTPUT, `${key}=${value}\n`)
     appendFileSync(
       process.env.GITHUB_STEP_SUMMARY,
-      `## Reserved ${plan.tag}\n\n- Source: ${plan.branch} at ${plan.source_sha}\n- Reservation: ${plan.reservation_sha}\n- Run: ${plan.run_url}\n\nThe tag remains reserved if validation or publication fails.\n`,
+      `## Reserved ${plan.tag}\n\n- Source: ${plan.branch} at ${plan.source_sha}\n- Approval: ${plan.approval_mode}\n- Environment: ${plan.environment || 'none'}\n- Reservation: ${plan.reservation_sha}\n- Run: ${plan.run_url}\n\nThe tag remains reserved if validation or publication fails.\n`,
     )
     return
   }
@@ -336,10 +536,14 @@ async function main() {
   validatePlan(plan)
   if (
     plan.source_sha !== process.env.EXPECTED_SOURCE_SHA ||
-    plan.tag !== process.env.EXPECTED_TAG
+    plan.tag !== process.env.EXPECTED_TAG ||
+    plan.run_url !==
+      `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`
   )
     throw new Error('Artifact plan does not match this run')
-  if (mode === 'recheck') await preflight(plan, github)
+  if (mode === 'recheck') await preflight(plan, github, approvalMode)
+  else if (mode === 'publish-check')
+    await authorizePublication(plan, github, approvalMode)
   else if (['image', 'verify-image'].includes(mode)) {
     const metadata = inspectImage('image-layout', 'scans', plan)
     if (mode === 'verify-image') {
