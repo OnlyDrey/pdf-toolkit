@@ -20,6 +20,9 @@ docker exec "$name" sh -ec '
   worker=$(find /usr/share/nginx/html/assets -name "*.mjs" | head -n 1)
   worker_url=/assets/${worker##*/}
   wget -Y off -S -O /dev/null "http://127.0.0.1:8080$worker_url" 2>&1 | grep -qi "Content-Type: application/javascript"
+  for asset in brand-mark.svg favicon.svg favicon-16.png favicon-32.png apple-touch-icon.png; do
+    wget -Y off -qO /dev/null "http://127.0.0.1:8080/$asset"
+  done
   nginx -t
 '
 headers=$(docker exec "$name" wget -Y off -S -O /dev/null http://127.0.0.1:8080/ 2>&1)
