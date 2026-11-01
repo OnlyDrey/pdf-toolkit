@@ -1,3 +1,4 @@
+import { ProcessingStatus } from './ProcessingStatus'
 import { useActiveTool } from '@/lib/active-tool-context'
 import {
   readVersionInfo,
@@ -162,6 +163,13 @@ export function VersionFix() {
     }
   }
 
+  const warning =
+    catalog && Number(catalog) > Number(targetVersion)
+      ? t('tools.versionFix.catalogWarning', { version: catalog })
+      : detected && Number(targetVersion) < Number(detected)
+        ? t('tools.versionFix.lowerWarning')
+        : ''
+
   return (
     <div className="mx-auto max-w-2xl space-y-4">
       <Card>
@@ -172,7 +180,8 @@ export function VersionFix() {
           </CardTitle>
           <CardDescription>{t('tools.versionFix.description')}</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <ProcessingStatus busy={processing} />
+        <CardContent aria-busy={processing} className="space-y-6">
           <p id="version-note" className="text-sm text-muted-foreground">
             {t('tools.versionFix.note')}
           </p>
@@ -183,6 +192,7 @@ export function VersionFix() {
             <p className="mt-2">{t('tools.versionFix.details')}</p>
           </details>
           <FileDropZone
+            disabled={processing}
             onFiles={handleFile}
             hasFile={!!file}
             fileLabel={
@@ -219,10 +229,14 @@ export function VersionFix() {
                   </div>
                 </div>
                 <div className="space-y-1">
-                  <Label htmlFor="tv" className="text-xs text-muted-foreground">
+                  <Label
+                    htmlFor="version-target"
+                    className="text-xs text-muted-foreground"
+                  >
                     {t('tools.versionFix.targetVersion')}
                   </Label>
                   <Select
+                    disabled={processing}
                     value={targetVersion}
                     onValueChange={(v) => {
                       setTargetVersion(v as PdfVersion)
@@ -232,8 +246,12 @@ export function VersionFix() {
                     }}
                   >
                     <SelectTrigger
-                      id="tv"
-                      aria-describedby="version-note version-warning"
+                      id="version-target"
+                      aria-describedby={
+                        warning
+                          ? 'version-note version-warning'
+                          : 'version-note'
+                      }
                       className="w-full sm:w-64"
                     >
                       <SelectValue />
@@ -253,18 +271,16 @@ export function VersionFix() {
           <p
             id="version-warning"
             role="status"
+            hidden={!warning}
             className="text-sm text-muted-foreground"
           >
-            {catalog && Number(catalog) > Number(targetVersion)
-              ? t('tools.versionFix.catalogWarning', { version: catalog })
-              : detected && Number(targetVersion) < Number(detected)
-                ? t('tools.versionFix.lowerWarning')
-                : ''}
+            {warning}
           </p>
           {error && (
             <div
               role="alert"
-              className="flex items-center gap-2 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive"
+              id="versionfix-error"
+              className="flex items-center gap-2 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive-text"
             >
               <AlertCircle className="h-4 w-4 shrink-0" />
               {error}

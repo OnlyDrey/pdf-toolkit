@@ -19,7 +19,7 @@ export function Header() {
   return (
     <header className="border-b bg-background">
       <div className="mx-auto max-w-5xl px-4 py-3">
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
               <span aria-hidden="true" className="brand-mark h-5 w-5" />
@@ -44,7 +44,7 @@ export function Header() {
                   aria-label={t(`theme.${th}`)}
                   aria-pressed={theme === th}
                   className={cn(
-                    'flex items-center justify-center rounded p-1.5 transition-colors',
+                    'flex items-center justify-center min-h-8 min-w-8 rounded p-1.5 transition-colors',
                     theme === th
                       ? 'bg-primary text-primary-foreground'
                       : 'text-muted-foreground hover:text-foreground',

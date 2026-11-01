@@ -10,7 +10,8 @@
     "rotate": "Roter",
     "resize": "Endre størrelse",
     "crop": "Beskjær",
-    "versionFix": "Versjonsfix"
+    "versionFix": "Versjonsfix",
+    "tools": "PDF-verktøy"
   },
   "session": {
     "working": "Arbeider med",
@@ -19,7 +20,9 @@
     "clear": "Forkast",
     "saveToSession": "Lagre til sesjon",
     "useFile": "Sesjon",
-    "use": "Bruk"
+    "use": "Bruk",
+    "confirmTitle": "Forkaste arbeidsfilen?",
+    "confirmDescription": "Last ned en kopi først hvis du vil beholde endringene."
   },
   "common": {
     "upload": "Last opp",
@@ -53,7 +56,9 @@
     "close": "Lukk",
     "previewUnavailable": "Forhåndsvisning utilgjengelig",
     "selectedPages": "{{count}} sider valgt",
-    "pageLabel": "Side {{page}}"
+    "pageLabel": "Side {{page}}",
+    "skipToContent": "Hopp til verktøy",
+    "previewPage": "Forhåndsvisning av PDF-side {{page}}"
   },
   "theme": {
     "light": "Lyst",
@@ -166,6 +171,7 @@
     "encrypted": "Krypterte PDF-filer støttes ikke. Dekrypter en kopi lokalt før du bruker verktøyet.",
     "tooLarge": "Grensen er 100 MiB per PDF eller samlet ved sammenslåing. Del dokumentet lokalt først.",
     "version": "Et fullstendig, støttet PDF-hode må stå i starten av filen.",
-    "processing": "Operasjonen mislyktes. Kontroller sidevalg, marger og PDF-filen, og prøv igjen."
+    "processing": "Operasjonen mislyktes. Kontroller sidevalg, marger og PDF-filen, og prøv igjen.",
+    "fileType": "Velg PDF-filer. Andre filtyper støttes ikke."
   }
 }

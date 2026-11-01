@@ -252,3 +252,43 @@ test('canonical navbar branding and favicon assets are served as real images', a
     expect(bytes.readUInt32BE(20)).toBe(size)
   }
 })
+
+test('keyboard tabs, focus, document language and discard confirmation are predictable', async ({
+  page,
+}) => {
+  const merge = page.getByRole('tab', { name: 'Merge', exact: true })
+  await merge.focus()
+  await page.keyboard.press('ArrowRight')
+  const compress = page.getByRole('tab', { name: 'Compress', exact: true })
+  await expect(compress).toBeFocused()
+  await expect(compress).toHaveAttribute('aria-selected', 'true')
+  await expect(compress).toHaveCSS('outline-style', 'solid')
+  await expect(compress).toHaveCSS('border-left-width', '0px')
+  const controls = await compress.getAttribute('aria-controls')
+  await expect(page.locator('#' + controls)).toHaveAttribute('role', 'tabpanel')
+  await page.keyboard.press('Tab')
+  await expect(page.locator('#' + controls)).toBeFocused()
+  await page.getByRole('button', { name: 'Norwegian', exact: true }).click()
+  await expect(page.locator('html')).toHaveAttribute('lang', 'nb')
+  await page.getByRole('button', { name: 'Engelsk', exact: true }).click()
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en')
+  await page.getByRole('tab', { name: 'Rotate', exact: true }).click()
+  await upload(page, await pdf('confirm.pdf'))
+  await apply(page)
+  const discard = page.getByRole('button', { name: 'Discard', exact: true })
+  await discard.click()
+  const dialog = page.getByRole('alertdialog')
+  await expect(dialog).toBeVisible()
+  await expect(
+    dialog.getByRole('button', { name: 'Cancel', exact: true }),
+  ).toBeFocused()
+  await page.keyboard.press('Escape')
+  await expect(dialog).not.toBeVisible()
+  await expect(discard).toBeFocused()
+  await discard.click()
+  await dialog.getByRole('button', { name: 'Discard', exact: true }).click()
+  await expect(page.getByText('Working on:', { exact: false })).toHaveCount(0)
+  await expect(
+    page.getByRole('tab', { name: 'Rotate', exact: true }),
+  ).toBeFocused()
+})

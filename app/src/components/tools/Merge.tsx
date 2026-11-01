@@ -1,3 +1,4 @@
+import { ProcessingStatus } from './ProcessingStatus'
 import { useSession } from '@/lib/session-context'
 import { loadPdf, PdfInputError, MAX_PDF_BYTES } from '@/lib/pdf-document'
 import { useState } from 'react'
@@ -76,7 +77,7 @@ function SortableItem({
         aria-label={t('tools.merge.reorder') + ': ' + entry.file.name}
         {...attributes}
         {...listeners}
-        className="cursor-grab touch-none text-muted-foreground hover:text-foreground active:cursor-grabbing"
+        className="flex min-h-8 min-w-8 items-center justify-center cursor-grab touch-none text-muted-foreground hover:text-foreground active:cursor-grabbing"
       >
         <GripVertical className="h-4 w-4" />
       </button>
@@ -90,7 +91,7 @@ function SortableItem({
         type="button"
         aria-label={t('common.remove') + ': ' + entry.file.name}
         onClick={() => onRemove(entry.id)}
-        className="text-muted-foreground hover:text-destructive"
+        className="flex min-h-8 min-w-8 items-center justify-center text-muted-foreground hover:text-destructive-text"
       >
         <X className="h-4 w-4" />
       </button>
@@ -178,7 +179,8 @@ export function Merge() {
           </CardTitle>
           <CardDescription>{t('tools.merge.description')}</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <ProcessingStatus busy={processing} />
+        <CardContent aria-busy={processing} className="space-y-6">
           <FileDropZone multiple onFiles={handleFiles} />
           {entries.length > 0 && (
             <>
@@ -223,7 +225,8 @@ export function Merge() {
           {error && (
             <div
               role="alert"
-              className="flex items-center gap-2 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive"
+              id="merge-error"
+              className="flex items-center gap-2 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive-text"
             >
               <AlertCircle className="h-4 w-4 shrink-0" />
               {error}

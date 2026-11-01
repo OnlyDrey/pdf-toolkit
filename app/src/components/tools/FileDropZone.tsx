@@ -1,8 +1,15 @@
-import { useRef, type DragEvent, type ChangeEvent } from 'react'
+import {
+  useRef,
+  useState,
+  useId,
+  type DragEvent,
+  type ChangeEvent,
+} from 'react'
 import { Upload, FileText } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 interface FileDropZoneProps {
+  disabled?: boolean
   multiple?: boolean
   onFiles: (files: File[]) => void
   className?: string
@@ -12,6 +19,7 @@ interface FileDropZoneProps {
   onUseSession?: () => void
 }
 export function FileDropZone({
+  disabled = false,
   multiple = false,
   onFiles,
   className,
@@ -21,48 +29,75 @@ export function FileDropZone({
   onUseSession,
 }: FileDropZoneProps) {
   const { t } = useTranslation()
+  const [fileError, setFileError] = useState(false)
+  const [dragging, setDragging] = useState(false)
+  const errorId = useId()
+  const acceptFiles = (files: File[]) => {
+    if (disabled || !files.length) return
+    if (
+      files.some(
+        (f) =>
+          f.type !== 'application/pdf' &&
+          !f.name.toLowerCase().endsWith('.pdf'),
+      )
+    ) {
+      setFileError(true)
+      return
+    }
+    setFileError(false)
+    onFiles(multiple ? files : files.slice(0, 1))
+  }
   const inputRef = useRef<HTMLInputElement>(null)
   const handleDrop = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault()
-    const files = Array.from(e.dataTransfer.files).filter(
-      (f) =>
-        f.type === 'application/pdf' || f.name.toLowerCase().endsWith('.pdf'),
-    )
-    if (files.length > 0) onFiles(multiple ? files : files.slice(0, 1))
+    setDragging(false)
+    acceptFiles(Array.from(e.dataTransfer.files))
   }
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files ?? [])
-    if (files.length > 0) onFiles(multiple ? files : files.slice(0, 1))
+    acceptFiles(Array.from(e.target.files ?? []))
     e.target.value = ''
   }
+
   const showSession = !hasFile && !!sessionName && !!onUseSession
   return (
     <div className={cn('space-y-0', className)}>
       <div
         role="button"
-        tabIndex={0}
+        tabIndex={disabled ? -1 : 0}
+        aria-disabled={disabled || undefined}
+        aria-describedby={fileError ? errorId : undefined}
         aria-label={
           multiple ? t('common.dragDropMultiple') : t('common.dragDropHere')
         }
         className={cn(
-          'flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-border bg-muted/30 p-8 text-center transition-colors hover:bg-muted/50 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring',
-          hasFile && 'border-primary/40 bg-primary/5',
+          'flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-input bg-muted/30 p-8 text-center transition-colors hover:bg-muted/50 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring',
+          hasFile && 'border-primary bg-primary/5',
+          dragging && 'border-primary bg-primary/10',
+          disabled && 'cursor-wait opacity-60',
           showSession && 'rounded-b-none border-b-0',
         )}
-        onClick={() => inputRef.current?.click()}
+        onClick={() => {
+          if (!disabled) inputRef.current?.click()
+        }}
         onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
+          if (!disabled && (e.key === 'Enter' || e.key === ' ')) {
             e.preventDefault()
             inputRef.current?.click()
           }
         }}
         onDrop={handleDrop}
-        onDragOver={(e) => e.preventDefault()}
+        onDragOver={(e) => {
+          e.preventDefault()
+          if (!disabled) setDragging(true)
+        }}
+        onDragLeave={() => setDragging(false)}
       >
         <Upload className="mb-3 h-8 w-8 text-muted-foreground" />
         {hasFile && fileLabel ? (
           <>
-            <p className="text-sm font-medium text-foreground">{fileLabel}</p>
+            <p className="max-w-full break-words text-sm font-medium text-foreground [overflow-wrap:anywhere]">
+              {fileLabel}
+            </p>
             <p className="mt-1 text-xs text-muted-foreground">
               {t('common.dragDropHere')}
             </p>
@@ -82,15 +117,29 @@ export function FileDropZone({
         <input
           ref={inputRef}
           type="file"
+          aria-label={
+            multiple ? t('common.dragDropMultiple') : t('common.dragDropHere')
+          }
+          disabled={disabled}
           accept=".pdf,application/pdf"
           multiple={multiple}
           className="hidden"
           onChange={handleChange}
         />
       </div>
+      {fileError && (
+        <p
+          id={errorId}
+          role="alert"
+          className="pt-2 text-sm text-destructive-text"
+        >
+          {t('errors.fileType')}
+        </p>
+      )}
       {showSession && (
         <button
           type="button"
+          disabled={disabled}
           onClick={(e) => {
             e.stopPropagation()
             onUseSession!()

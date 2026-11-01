@@ -1,3 +1,4 @@
+import { ProcessingStatus } from './ProcessingStatus'
 import { cropPages } from '@/lib/pdf-operations'
 import { useActiveTool } from '@/lib/active-tool-context'
 import { loadPdf, PdfInputError } from '@/lib/pdf-document'
@@ -177,8 +178,10 @@ export function Crop() {
           </CardTitle>
           <CardDescription>{t('tools.crop.description')}</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <ProcessingStatus busy={processing} />
+        <CardContent aria-busy={processing} className="space-y-6">
           <FileDropZone
+            disabled={processing}
             onFiles={handleFile}
             hasFile={!!file}
             fileLabel={
@@ -257,13 +260,14 @@ export function Crop() {
                 <div className="flex flex-col items-center gap-2">
                   <div className="w-28">
                     <Label
-                      htmlFor="mt"
+                      htmlFor="crop-top"
                       className="mb-1 block text-center text-xs text-muted-foreground"
                     >
                       {t('tools.crop.top')}
                     </Label>
                     <Input
-                      id="mt"
+                      aria-describedby={error ? 'crop-error' : undefined}
+                      id="crop-top"
                       type="number"
                       min={0}
                       value={margins.top}
@@ -274,13 +278,14 @@ export function Crop() {
                   <div className="flex w-full max-w-xs items-center justify-between gap-2">
                     <div className="w-28">
                       <Label
-                        htmlFor="ml"
+                        htmlFor="crop-left"
                         className="mb-1 block text-center text-xs text-muted-foreground"
                       >
                         {t('tools.crop.left')}
                       </Label>
                       <Input
-                        id="ml"
+                        aria-describedby={error ? 'crop-error' : undefined}
+                        id="crop-left"
                         type="number"
                         min={0}
                         value={margins.left}
@@ -293,13 +298,14 @@ export function Crop() {
                     </div>
                     <div className="w-28">
                       <Label
-                        htmlFor="mr"
+                        htmlFor="crop-right"
                         className="mb-1 block text-center text-xs text-muted-foreground"
                       >
                         {t('tools.crop.right')}
                       </Label>
                       <Input
-                        id="mr"
+                        aria-describedby={error ? 'crop-error' : undefined}
+                        id="crop-right"
                         type="number"
                         min={0}
                         value={margins.right}
@@ -310,13 +316,14 @@ export function Crop() {
                   </div>
                   <div className="w-28">
                     <Label
-                      htmlFor="mb"
+                      htmlFor="crop-bottom"
                       className="mb-1 block text-center text-xs text-muted-foreground"
                     >
                       {t('tools.crop.bottom')}
                     </Label>
                     <Input
-                      id="mb"
+                      aria-describedby={error ? 'crop-error' : undefined}
+                      id="crop-bottom"
                       type="number"
                       min={0}
                       value={margins.bottom}
@@ -327,12 +334,13 @@ export function Crop() {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="cp">{t('tools.crop.applyTo')}</Label>
+                <Label htmlFor="crop-pages">{t('tools.crop.applyTo')}</Label>
                 <Select
+                  disabled={processing}
                   value={pageSel}
                   onValueChange={(v) => setPageSel(v as PageSelection)}
                 >
-                  <SelectTrigger id="cp">
+                  <SelectTrigger id="crop-pages">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -345,9 +353,10 @@ export function Crop() {
               </div>
               {pageSel === 'range' && (
                 <div className="space-y-2">
-                  <Label htmlFor="cr">{t('common.pageRange')}</Label>
+                  <Label htmlFor="crop-range">{t('common.pageRange')}</Label>
                   <Input
-                    id="cr"
+                    aria-describedby={error ? 'crop-error' : undefined}
+                    id="crop-range"
                     placeholder={t('common.pageRangePlaceholder')}
                     value={rangeInput}
                     onChange={(e) => setRangeInput(e.target.value)}
@@ -359,7 +368,8 @@ export function Crop() {
           {error && (
             <div
               role="alert"
-              className="flex items-center gap-2 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive"
+              id="crop-error"
+              className="flex items-center gap-2 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive-text"
             >
               <AlertCircle className="h-4 w-4 shrink-0" />
               {error}

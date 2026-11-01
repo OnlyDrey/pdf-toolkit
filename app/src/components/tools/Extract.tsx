@@ -1,3 +1,4 @@
+import { ProcessingStatus } from './ProcessingStatus'
 import { useActiveTool } from '@/lib/active-tool-context'
 import { loadPdf, PdfInputError } from '@/lib/pdf-document'
 import { useState, useEffect, useRef } from 'react'
@@ -195,8 +196,10 @@ export function Extract() {
           </CardTitle>
           <CardDescription>{t('tools.extract.description')}</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <ProcessingStatus busy={processing} />
+        <CardContent aria-busy={processing} className="space-y-6">
           <FileDropZone
+            disabled={processing}
             onFiles={handleFile}
             hasFile={!!file}
             fileLabel={
@@ -245,7 +248,7 @@ export function Extract() {
                         className={cn(
                           'relative flex flex-col items-center gap-1 rounded transition-opacity duration-150',
                           'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
-                          isSel ? 'opacity-100' : 'opacity-60 hover:opacity-90',
+                          isSel ? 'bg-primary/5' : 'hover:bg-muted/50',
                         )}
                       >
                         <div
@@ -289,9 +292,12 @@ export function Extract() {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="er">{t('tools.extract.selectPages')}</Label>
+                <Label htmlFor="extract-range">
+                  {t('tools.extract.selectPages')}
+                </Label>
                 <Input
-                  id="er"
+                  aria-describedby={error ? 'extract-error' : undefined}
+                  id="extract-range"
                   placeholder={t('common.pageRangePlaceholder')}
                   value={inputVal}
                   onChange={(e) => handleInputChange(e.target.value)}
@@ -305,7 +311,8 @@ export function Extract() {
           {error && (
             <div
               role="alert"
-              className="flex items-center gap-2 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive"
+              id="extract-error"
+              className="flex items-center gap-2 rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive-text"
             >
               <AlertCircle className="h-4 w-4 shrink-0" />
               {error}

@@ -10,7 +10,8 @@
     "rotate": "Rotate",
     "resize": "Resize",
     "crop": "Crop",
-    "versionFix": "Version Fix"
+    "versionFix": "Version Fix",
+    "tools": "PDF tools"
   },
   "session": {
     "working": "Working on",
@@ -19,7 +20,9 @@
     "clear": "Discard",
     "saveToSession": "Save to session",
     "useFile": "Session",
-    "use": "Use"
+    "use": "Use",
+    "confirmTitle": "Discard working file?",
+    "confirmDescription": "Download a copy first if you want to keep your changes."
   },
   "common": {
     "upload": "Upload",
@@ -53,7 +56,9 @@
     "close": "Close",
     "previewUnavailable": "Preview unavailable",
     "selectedPages": "{{count}} pages selected",
-    "pageLabel": "Page {{page}}"
+    "pageLabel": "Page {{page}}",
+    "skipToContent": "Skip to tool",
+    "previewPage": "PDF page {{page}} preview"
   },
   "theme": {
     "light": "Light",
@@ -166,6 +171,7 @@
     "encrypted": "Encrypted PDFs are not supported. Decrypt a copy locally before using this tool.",
     "tooLarge": "The limit is 100 MiB per PDF or combined merge input. Split the document locally first.",
     "version": "A complete, supported PDF header must appear at the start of the file.",
-    "processing": "The operation failed. Check your page range, margins and PDF, then try again."
+    "processing": "The operation failed. Check your page range, margins and PDF, then try again.",
+    "fileType": "Choose PDF files. Other file types are not supported."
   }
 }
