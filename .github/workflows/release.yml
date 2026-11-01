@@ -14,6 +14,9 @@ on:
         required: true
 permissions:
   contents: read
+env:
+  # Repository setting, never a dispatch input. Missing value keeps protected approval.
+  PRODUCTION_APPROVAL_MODE: ${{ vars.PRODUCTION_APPROVAL_MODE }}
 # Also serializes with the previous workflow while maintainers promote this policy.
 # Atomic Git ref creation is the final guard against another writer reserving a version.
 concurrency:
@@ -21,7 +24,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   prepare:
-    name: Resolve source and reserve version
+    name: Prepare release
     runs-on: ubuntu-latest
     permissions:
       contents: write # Only creates a unique annotated version tag; never updates a branch.
@@ -31,6 +34,7 @@ jobs:
       tag: ${{ steps.plan.outputs.tag }}
       source_sha: ${{ steps.plan.outputs.source_sha }}
       environment: ${{ steps.plan.outputs.environment }}
+      approval_mode: ${{ steps.plan.outputs.approval_mode }}
       image_channel: ${{ steps.plan.outputs.image_channel }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -63,14 +67,14 @@ jobs:
           retention-days: 90
           overwrite: true
   validate:
-    name: Validate the pinned source
+    name: Validate source
     needs: prepare
     uses: ./.github/workflows/ci.yml
     with:
       source_sha: ${{ needs.prepare.outputs.source_sha }}
       require_full_validation: true
   build:
-    name: Build and scan both platforms without publishing
+    name: Build and scan
     permissions:
       contents: read
       actions: read
@@ -178,7 +182,7 @@ jobs:
         env:
           DIGEST: ${{ steps.image.outputs.image_digest }}
         run: |
-          printf '## Ready for Environment approval\n\nVersion: `%s`\n\nSource: `%s`\n\nScanned multi-platform digest: `%s`\n' "$EXPECTED_TAG" "$EXPECTED_SOURCE_SHA" "$DIGEST" >> "$GITHUB_STEP_SUMMARY"
+          printf '## Validated release artifact\n\nVersion: `%s`\n\nSource: `%s`\n\nScanned multi-platform digest: `%s`\n\nBeta uses dispatch authorization. Production follows its recorded approval policy.\n' "$EXPECTED_TAG" "$EXPECTED_SOURCE_SHA" "$DIGEST" >> "$GITHUB_STEP_SUMMARY"
       - name: Preserve only the successfully scanned archive
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -192,11 +196,25 @@ jobs:
           retention-days: 7
           compression-level: 0
           overwrite: true
-  publish:
-    name: Approve and publish ${{ needs.prepare.outputs.tag }} at ${{ needs.prepare.outputs.source_sha }}
+  approval:
+    name: Production approval
     needs: [prepare, validate, build]
+    if: needs.prepare.outputs.environment == 'production'
     runs-on: ubuntu-latest
-    environment: ${{ needs.prepare.outputs.environment }}
+    environment: production
+    permissions: {}
+    steps:
+      - run: echo 'Production Environment deployment rules completed. Publication rechecks the recorded policy.'
+  publish:
+    name: Publish release
+    needs: [prepare, validate, build, approval]
+    # Beta/owner-without-Environment may skip only the Environment gate, never CI/scans.
+    if: >-
+      always() && !cancelled() &&
+      needs.prepare.result == 'success' && needs.validate.result == 'success' && needs.build.result == 'success' &&
+      ((needs.prepare.outputs.environment == 'production' && needs.approval.result == 'success') ||
+       (needs.prepare.outputs.environment == '' && needs.approval.result == 'skipped'))
+    runs-on: ubuntu-latest
     permissions:
       contents: write
       packages: write
@@ -233,6 +251,14 @@ jobs:
           skip-decompress: false
           name: frontend-release
           path: release-bundles
+      - name: Check publication authorization
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if ! node release-policy/app/scripts/release.mjs publish-check; then
+            printf '## Publication stopped\n\nVersion: `%s`\n\nSource: `%s`\n\nScanned digest: `%s`\n\nIf owner confirmation is requested, review CI/scans and have the repository owner choose **Re-run failed jobs** on this same run. Do not rerun all jobs. Other policy errors require the configuration fix shown in the log. No artifact is published by this check.\n' "$EXPECTED_TAG" "$EXPECTED_SOURCE_SHA" "$EXPECTED_DIGEST" >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
       - name: Verify that the approved archive is exactly the scanned artifact
         run: |
           printf '%s  release-bundles/pdf-toolkit-%s.zip\n' "$EXPECTED_BUNDLE_SHA256" "$VERSION" | sha256sum --check -
@@ -254,7 +280,7 @@ jobs:
       - name: Final source, reservation and approval-protection check
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: node release-policy/app/scripts/release.mjs recheck
+        run: node release-policy/app/scripts/release.mjs publish-check
       - name: Publish the preserved digest and this channel only
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -272,7 +298,7 @@ jobs:
           skopeo copy --all --preserve-digests --authfile "$auth_file" oci-archive:image.tar "docker://$IMAGE:$VERSION"
           actual=$(docker buildx imagetools inspect "$IMAGE:$VERSION" --format '{{.Manifest.Digest}}')
           test "$actual" = "$EXPECTED_DIGEST"
-          node release-policy/app/scripts/release.mjs recheck
+          node release-policy/app/scripts/release.mjs publish-check
           docker buildx imagetools create --tag "$IMAGE:$build_tag" --tag "$IMAGE:$IMAGE_CHANNEL" "$IMAGE@$EXPECTED_DIGEST"
       - name: Create versioned GitHub Release with source and digest metadata
         env:
@@ -283,9 +309,9 @@ jobs:
           if [ "$IMAGE_CHANNEL" = beta ]; then args+=(--prerelease --latest=false); else args+=(--latest); fi
           gh release create "$EXPECTED_TAG" release-plan.json image-metadata.json "release-bundles/pdf-toolkit-$VERSION.zip" "release-bundles/pdf-toolkit-$VERSION.zip.sha256" --repo "$GITHUB_REPOSITORY" --verify-tag --title "$EXPECTED_TAG" --generate-notes --notes-file release-notes.md "${args[@]}"
   summary:
-    name: Release result and traceability
+    name: Release result
     if: always()
-    needs: [prepare, validate, build, publish]
+    needs: [prepare, validate, build, approval, publish]
     runs-on: ubuntu-latest
     permissions: {}
     steps:
