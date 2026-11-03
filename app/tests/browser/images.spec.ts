@@ -333,9 +333,8 @@ test('EXIF quarter-turn and mirrored JPEGs render correctly without recompressio
   expect(colors[0][2]).toBeLessThan(60)
   expect(colors[1][2]).toBeGreaterThan(200)
   await navigate(page, 'extract')
-  const mirroredCanvas = page
-    .locator('main > div:not(.hidden) [data-pdf-preview]')
-    .nth(1)
+  await page.locator('.document-panel').scrollIntoViewIfNeeded()
+  const mirroredCanvas = page.locator('.document-panel [data-pdf-preview="2"]')
   await expect(mirroredCanvas).toBeVisible()
   const reflected = await samplePreview(mirroredCanvas, [
     [0.25, 0.5],
