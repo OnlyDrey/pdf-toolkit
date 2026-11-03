@@ -1,5 +1,69 @@
 # Verification and remaining manual checks
 
+## High-resolution image support — 2026-11-03
+
+The fix was completed on work and the clean code at `c8a86a6748c5a97b9080c60fb89366708c6b359b` passed one complete regression through the freshly built hardened Nginx container. This supersedes the original image-size thresholds documented in the earlier baseline below. No dependency versions changed, Actions were not dispatched and no images/releases/tags were published.
+
+Root cause: upload validation rejected files over 20 MiB, 40 MP or 16,384px per side, plus a 100 MP batch cap. Preparation then requested a full native bitmap before making a tiny thumbnail. pdf-lib's standard PNG path expands full-image pixel buffers even without a canvas. A 10800 × 14400 RGBA image would require 622,080,000 bytes for RGBA alone, before other decoding/embedding buffers.
+
+JPEGs now use bounded metadata reads, small requested native thumbnails and unchanged JPEG embedding. Non-interlaced 8/16-bit gray/RGB/gray-alpha/RGBA PNGs validate CRCs, deflate, row counts and filters in a streaming worker. Non-alpha IDAT data is reused with PDF predictors; alpha is split and losslessly compressed into color/soft-mask streams. Compressed plans are cached and reused instead of decoding again during conversion, and released with removed/cleared images. PNG thumbnails sample at most 160px without a full-size bitmap/canvas. Detectable worker/allocation errors retain the previous document. PNG/JPEG density metadata controls Original Size, with 96 DPI fallback; physical-page compatibility is checked before embedding.
+
+| Validation                                       | Result                                                                                                                                                                        |
+| ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| TypeScript, ESLint, formatting, production build | Passed; existing large-bundle advisory remains                                                                                                                                |
+| Unit tests                                       | **81 passed**, including filter reconstruction, CRC/deflate/row failures, nonzero 16-bit color/alpha samples, cache reuse/release, DPI/page bounds and safe preview preflight |
+| Release-policy tests                             | **67 passed**; source, reservation, approval, scanning and channel controls unchanged                                                                                         |
+| Python release engine                            | **44 passed, 4 Windows-only skipped** (48 total)                                                                                                                              |
+| Browser tests                                    | **46 passed** on desktop/Pixel 7 emulation, including all existing workflows/axe checks and 8 high-resolution cases                                                           |
+| Docker                                           | Fresh AMD64 multi-stage build passed; healthy UID/GID 101, read-only filesystem, headers, routes, worker MIME and branding checks passed                                      |
+| Compose / Bash / docs                            | Compose config, launcher syntax, cleanup dry-run and 28 local documentation targets passed                                                                                    |
+| Dependency audit                                 | Zero vulnerabilities; package manifest and lockfile unchanged                                                                                                                 |
+| Packaging                                        | Manifest, all artifact checksums, frontend/outer ZIP integrity, image-worker inclusion and pinned Compose default independently verified                                      |
+
+The matching generated **10800 × 14400 RGBA PNG at 300 DPI** included over 21 MiB of valid ancillary data and was queued alongside a second **8000 × 6000 RGBA PNG**. Native bitmap decoding and full-size worker canvases were forbidden by test instrumentation. The PDF retained 10800 × 14400 image dimensions, alpha values and approximately 2592 × 3456pt Original Size; rotation/subsequent download preserved those dimensions. A **20000 × 2500 (50 MP) JPEG** embedded byte-for-byte, exceeded the former dimension/pixel thresholds, and retained its pixels on A4 after the expected Original Size compatibility error. Additional tests rendered a 16-bit transparent PNG and simulated a low-memory fallback budget.
+
+Preparation of the two-image large-PNG queue, including file transfer, measured **18.591 seconds desktop / 17.468 seconds mobile emulation** during the full regression. The main thread heartbeat continued. These are environment-specific observations, not throughput guarantees. Per-row arrays and the small thumbnail replace the roughly 622 MB RGBA surface for the first image, but stream implementation queues, compressed cache and final PDF serialization still use memory; peak browser RSS was not measured. No conversion downscale or sample-precision reduction is applied.
+
+Actual limits are [documented separately](DEPLOYMENT.md#images-to-pdf): 100 queued images, the existing 100 MiB PDF/output and compressed-cache bound, a 64 MiB row-buffer budget, conservative estimated full-decoder budgets for other encodings, and a 14,400-default-point physical page bound without enlarged UserUnit pages. These are application/encoding/compatibility choices, not universal PDF pixel limits. Palette/interlaced 8-bit PNGs remain budgeted fallbacks; interlaced 16-bit PNGs are not silently converted to 8-bit. Large PDF previews may be skipped with a visible explanation before pixel decoding; editing and download remain available. Stream APIs and native codec/reader support vary, and browser/OS termination cannot always be caught. Unlimited image sizes are not promised. Windows, ARM64 runtime, other browser engines and real assistive-technology/browser-zoom checks were not executed here.
+
+The local provisional offline package is `9.9.4-beta.1`, from the clean source above, with validation recorded as `passed-offline`; npm audit ran separately online. It is not a reserved public release. Its outer ZIP SHA256 is `69b3df2877ec67a333080ff5ff51ffbfdd409d219a6906641d3f3cb635d603b9`; the packaged worker is `assets/images.worker-B0KlBRq7.js`. The tested local container is `sha256:a6ab1cbf21cd5b0e0bc75961e179496421170e2574d284796314d86a8db31feb`.
+
+| Phase                                                              | Commit    |
+| ------------------------------------------------------------------ | --------- |
+| Streaming high-resolution engine, worker, preview safety and tests | `48dbd19` |
+| Resource/DPI documentation and precision assertions                | `ff884e2` |
+| Generated fixtures available in the production Docker context      | `c8a86a6` |
+
+Every commit contains `[skip ci]` and pushes target origin/work only. Remote main remained `69c6375a2d7bd3b27dd93bd49d32f668bcb6b171`, matching task start. No pull request or manual repository-setting change was made.
+
+## Images to PDF — 2026-11-03
+
+Implemented and validated on work, with no dependency changes, workflow dispatch, PR creation, image publication or release publication. The clean code at `51e6618c49184e20cec40dec4161bfcaf615dcd4` passed the complete shared-engine regression against the fresh production Nginx container. The final documentation commit records these results.
+
+- TypeScript, ESLint, formatting and production build passed; the existing large-bundle advisory remains.
+- **68 unit tests passed**, including 23 new image metadata/EXIF/resource-limit/layout/PDF-placement/transparency cases. All eight EXIF orientations are covered by bounded metadata and transform checks.
+- **67 release-policy tests passed** with existing approval, source, reservation, scan and channel-isolation controls preserved.
+- **44 Python engine tests passed; 4 Windows-only tests skipped** (48 total). Bash syntax and real launcher cleanup dry-run passed. No Windows/PowerShell execution is claimed.
+- **38 browser cases passed** (desktop and Pixel 7 emulation), including 14 new image cases. Actual native JPEG/PNG/WebP/GIF/BMP decoding, ordered page count/dimensions, clipping, alpha masks, JPEG byte preservation, rendered EXIF rotation/mirror pixels, keyboard sorting/removal, image drop/picker, corrupt/TIFF/oversized rejection, progress, duplicate requests and session replacement/failure/race handling were verified. Generated image PDFs continued through Rotate and direct session-to-Merge without a separate download path.
+- Axe reported no violations in **82 scans**: 64 all-tool/theme/language combinations, 10 existing state scans and 8 populated image-queue theme/language combinations. Existing tool/reflow tests include the eighth panel. The new queue was checked at 320px with 200% root text size. This is automated evidence, not WCAG certification.
+- Fresh local **AMD64 Docker build and hardened container checks passed**: UID/GID 101, read-only assets, health, security/cache headers, SPA routes, PDF worker MIME and branding assets. Compose configuration passed. Container image: `sha256:62bab44d558fce6b0bd2619b8154b089922dec98c49aefe8b0bf665ab10187c5`.
+- **npm audit: zero vulnerabilities**. The package manifest and lockfile are unchanged.
+- Captured/reviewed the eight device/theme/language combinations and two replacement dialogs. The new queue/settings follow the existing compact design; mobile settings stack and longer Norwegian navigation wraps without clipping. No visual baselines were silently replaced.
+- Local offline packaging produced provisional `9.9.3-beta.1` from clean code. The manifest, artifact hashes, frontend/outer ZIP integrity, inclusion of the image tool and version-pinned packaged Compose default passed independent verification. Outer ZIP SHA256: `a6f152fe7c1ef2fc40656b7e6808b9caaae495db07446da34dc3516d7e41ec07`. Validation is recorded as `passed-offline`; npm audit ran separately online. This is a local test artifact, not a reserved public release/version.
+
+Resource cleanup is verified by revocation of removed/cleared thumbnail URLs. Native bitmaps and canvases are released in finally blocks; pending upload thumbnails are released on failure/unmount. Queue IDs do not require secure-context-only crypto.randomUUID; the JPEG/session browser path passes with that API absent, supporting plain-HTTP LAN use.
+
+Limits remain explicit: TIFF is deferred after optional-decoder evaluation; GIF/animated WebP use the first frame. Encodings rely on a modern browser with createImageBitmap/canvas PNG support. Browser memory exhaustion can still terminate a tab, and embedding/serialization can pause briefly. JPEG metadata and visually cropped image data may remain embedded. Windows, ARM64 runtime, other browser engines, assistive technology and real browser-chrome zoom were not executed here. Existing release publication/approval/multi-platform settings remain unexecuted and unchanged.
+
+| Phase                                                       | Commit    |
+| ----------------------------------------------------------- | --------- |
+| Image engine and unit coverage                              | `a2c9aa9` |
+| UI, localization, session confirmation and browser coverage | `d60550e` |
+| Documentation and direct session-to-Merge                   | `682aac3` |
+| Plain-HTTP compatibility                                    | `51e6618` |
+
+Every commit contains `[skip ci]` and was pushed only to origin/work. Remote main at task start was `69c6375a2d7bd3b27dd93bd49d32f668bcb6b171`; Codex did not modify it.
+
 ## VersionFix, branding, accessibility and beta channel — 2026-11-01
 
 The final code at `f84e097` passed the complete shared-engine regression locally with Node 24/Python 3.12 and system Chromium, targeting the freshly built hardened Nginx image. No Actions were dispatched and no images, tags or releases were published. The subsequent documentation commit records these results.

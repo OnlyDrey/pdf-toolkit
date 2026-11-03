@@ -11,7 +11,8 @@
     "resize": "Endre størrelse",
     "crop": "Beskjær",
     "versionFix": "Versjonsfix",
-    "tools": "PDF-verktøy"
+    "tools": "PDF-verktøy",
+    "images": "Bilder til PDF"
   },
   "session": {
     "working": "Arbeider med",
@@ -58,7 +59,8 @@
     "selectedPages": "{{count}} sider valgt",
     "pageLabel": "Side {{page}}",
     "skipToContent": "Hopp til verktøy",
-    "previewPage": "Forhåndsvisning av PDF-side {{page}}"
+    "previewPage": "Forhåndsvisning av PDF-side {{page}}",
+    "highResolutionPreview": "Forhåndsvisningen er hoppet over for å begrense dekodingsminnet. Full bildeoppløsning bevares; redigering og nedlasting er fortsatt tilgjengelig."
   },
   "theme": {
     "light": "Lyst",
@@ -168,6 +170,55 @@
       "details": "Støtte i eldre lesere og PDF/A garanteres ikke. Ustøttede funksjoner beholdes, katalogversjonen kan overstyre filhodet, og endringen kan ugyldiggjøre digitale signaturer.",
       "lowerWarning": "Et eldre filhode gjør ikke nyere PDF-funksjoner kompatible med eldre lesere.",
       "catalogWarning": "Dokumentkatalogen angir fortsatt PDF {{version}} og kan overstyre filhodet. Kompatibilitet med eldre lesere garanteres ikke."
+    },
+    "images": {
+      "title": "Bilder til PDF",
+      "description": "Samle bilder i en PDF, ett bilde per side. Endre rekkefølgen før du oppretter arbeidsdokumentet.",
+      "upload": "Dra og slipp bilder her, eller klikk for å velge",
+      "formats": "JPEG, PNG, WebP, GIF og BMP · flere filer støttes",
+      "frameNote": "GIF og animert WebP bruker bare første bilde. TIFF støttes ikke.",
+      "sizingNote": "Originalstørrelse bruker kildens DPI når den finnes, ellers 96 DPI. Marger legges til originalsiden. Små marger: 12 pt; normale: 24 pt. Pikseloppløsningen bevares; Fyll beskjærer bare visuelt.",
+      "selected": "Valgte bilder",
+      "count_one": "{{count}} bilde",
+      "count_other": "{{count}} bilder",
+      "dimensions": "{{width}} × {{height}} piksler",
+      "clear": "Tøm bildelisten",
+      "reorder": "Dra for å endre rekkefølge: {{name}}",
+      "preparing": "Klargjør bilde {{done}} av {{total}}…",
+      "converting": "Konverterer bilde {{done}} av {{total}}…",
+      "size": "Sidestørrelse",
+      "a4": "A4",
+      "letter": "Letter",
+      "original": "Opprinnelige bildedimensjoner",
+      "orientation": "Retning",
+      "auto": "Automatisk",
+      "portrait": "Stående",
+      "landscape": "Liggende",
+      "fit": "Bildetilpasning",
+      "contain": "Tilpass / behold hele",
+      "cover": "Fyll / beskjær",
+      "margin": "Marger",
+      "none": "Ingen",
+      "small": "Små",
+      "normal": "Normale",
+      "action": "Opprett PDF",
+      "success": "PDF klar. Bruk verktøylinjen for arbeidsfilen for å laste ned eller fortsette redigeringen.",
+      "replaceTitle": "Erstatte arbeidsfilen?",
+      "replaceDescription": "Den gjeldende PDF-arbeidsfilen blir erstattet. Last den ned først hvis du vil beholde den. Bildene beholdes hvis konverteringen mislykkes.",
+      "replaceAction": "Erstatt og opprett PDF",
+      "errors": {
+        "type": "Velg et støttet bilde: JPEG, PNG, WebP, GIF eller BMP. Filen må inneholde bildedata.",
+        "tiff": "TIFF støttes ikke. Eksporter første side som PNG eller JPEG først; flere sider importeres ikke.",
+        "corrupt": "Bildet kunne ikke leses. Det kan være skadet eller bruke en koding som ikke støttes.",
+        "batch": "Bruk høyst 100 bilder per kø. Del større samlinger i grupper.",
+        "empty": "Legg til minst ett bilde.",
+        "processing": "Kunne ikke opprette PDF-en. Prøv færre eller mindre bilder, eller et annet støttet format.",
+        "output": "Den genererte PDF-en overstiger grensen på 100 MiB for arbeidsdokumenter. Bruk færre eller mindre bilder.",
+        "sessionChanged": "Arbeidsfilen ble endret under konverteringen. Den er beholdt; opprett bilde-PDF-en på nytt når du er klar.",
+        "resource": "Denne kodingen krever mer dekodingsminne enn nettleserens budsjett tillater. Prøv en ikke-interlacet RGB/RGBA-PNG eller JPEG, en mindre gruppe, eller en enhet med mer minne.",
+        "encoding": "Denne PNG-kodingen støttes ikke av strømmebehandlingen i nettleseren. Eksporter en ikke-interlacet RGB/RGBA-PNG eller JPEG, eller prøv en oppdatert nettleser. Bildet er ikke automatisk nedskalert.",
+        "pageSize": "Originalstørrelsen overskrider verktøyets kompatible PDF-sidegrense (200 tommer / 14 400 standardpunkter). Velg A4 eller Letter, eller korriger kildens DPI. Innebygde bildepiksler reduseres ikke."
+      }
     }
   },
   "errors": {

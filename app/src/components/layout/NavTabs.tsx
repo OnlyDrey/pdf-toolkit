@@ -2,6 +2,7 @@ import { type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   Layers,
+  Images,
   Minimize2,
   Scissors,
   RotateCw,
@@ -12,7 +13,14 @@ import {
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 export type ToolTab =
-  'merge' | 'compress' | 'extract' | 'rotate' | 'resize' | 'crop' | 'versionFix'
+  | 'merge'
+  | 'compress'
+  | 'extract'
+  | 'rotate'
+  | 'resize'
+  | 'crop'
+  | 'versionFix'
+  | 'images'
 
 interface TabDef {
   id: ToolTab
@@ -25,6 +33,11 @@ interface NavTabsProps {
 }
 
 const tabs: TabDef[] = [
+  {
+    id: 'images',
+    icon: <Images className="h-4 w-4" />,
+    labelKey: 'nav.images',
+  },
   { id: 'merge', icon: <Layers className="h-4 w-4" />, labelKey: 'nav.merge' },
   {
     id: 'compress',

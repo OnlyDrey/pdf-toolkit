@@ -11,7 +11,8 @@
     "resize": "Resize",
     "crop": "Crop",
     "versionFix": "Version Fix",
-    "tools": "PDF tools"
+    "tools": "PDF tools",
+    "images": "Images to PDF"
   },
   "session": {
     "working": "Working on",
@@ -58,7 +59,8 @@
     "selectedPages": "{{count}} pages selected",
     "pageLabel": "Page {{page}}",
     "skipToContent": "Skip to tool",
-    "previewPage": "PDF page {{page}} preview"
+    "previewPage": "PDF page {{page}} preview",
+    "highResolutionPreview": "Preview skipped to limit decoding memory. Full image resolution is preserved; editing and download are still available."
   },
   "theme": {
     "light": "Light",
@@ -168,6 +170,55 @@
       "details": "Older-reader support and PDF/A are not guaranteed. Unsupported features remain, a catalog version can override the header, and editing can invalidate digital signatures.",
       "lowerWarning": "An older header does not make newer PDF features compatible with older readers.",
       "catalogWarning": "The document catalog still declares PDF {{version}} and may override this header. Older-reader compatibility is not guaranteed."
+    },
+    "images": {
+      "title": "Images to PDF",
+      "description": "Combine images into a PDF, one image per page. Reorder before creating your working document.",
+      "upload": "Drag & drop images here, or click to browse",
+      "formats": "JPEG, PNG, WebP, GIF and BMP · multiple files supported",
+      "frameNote": "GIF and animated WebP use the first frame only. TIFF is not supported.",
+      "sizingNote": "Original size uses source DPI when available, otherwise 96 DPI. Margins add to the original page. Small margins: 12 pt; normal: 24 pt. Pixel resolution is preserved; Fill crops visually.",
+      "selected": "Selected images",
+      "count_one": "{{count}} image",
+      "count_other": "{{count}} images",
+      "dimensions": "{{width}} × {{height}} px",
+      "clear": "Clear images",
+      "reorder": "Drag to reorder: {{name}}",
+      "preparing": "Preparing image {{done}} of {{total}}…",
+      "converting": "Converting image {{done}} of {{total}}…",
+      "size": "Page size",
+      "a4": "A4",
+      "letter": "Letter",
+      "original": "Original image dimensions",
+      "orientation": "Orientation",
+      "auto": "Auto",
+      "portrait": "Portrait",
+      "landscape": "Landscape",
+      "fit": "Image fitting",
+      "contain": "Fit / contain",
+      "cover": "Fill / crop",
+      "margin": "Margins",
+      "none": "None",
+      "small": "Small",
+      "normal": "Normal",
+      "action": "Create PDF",
+      "success": "PDF ready. Use the working-file toolbar to download or continue editing.",
+      "replaceTitle": "Replace working PDF?",
+      "replaceDescription": "Your current working PDF will be replaced. Download it first if you want to keep it. Images remain selected if conversion fails.",
+      "replaceAction": "Replace and create PDF",
+      "errors": {
+        "type": "Choose a supported image: JPEG, PNG, WebP, GIF or BMP. The file must contain image data.",
+        "tiff": "TIFF is not supported. Export its first page as PNG or JPEG first; additional pages are not imported.",
+        "corrupt": "This image could not be decoded. It may be damaged or use an unsupported encoding.",
+        "batch": "Use at most 100 images per queue. Split larger collections into batches.",
+        "empty": "Add at least one image.",
+        "processing": "Could not create the PDF. Try fewer or smaller images, or another supported format.",
+        "output": "The generated PDF exceeds the 100 MiB working-document limit. Use fewer or smaller images.",
+        "sessionChanged": "The working PDF changed during conversion. It has been kept; create the image PDF again when ready.",
+        "resource": "This encoding needs more decoding memory than the browser budget allows. Try a non-interlaced RGB/RGBA PNG or JPEG, a smaller batch, or a device with more memory.",
+        "encoding": "This PNG encoding is not supported by the streaming path in this browser. Export a non-interlaced RGB/RGBA PNG or JPEG, or try a current browser. No automatic downscaling was applied.",
+        "pageSize": "Original Size exceeds the compatible PDF page bound used here (200 inches / 14,400 default points). Choose A4 or Letter, or correct the source DPI. Embedded image pixels are not reduced."
+      }
     }
   },
   "errors": {

@@ -4,6 +4,7 @@ import {
   type PDFDocumentLoadingTask,
   type PDFDocumentProxy,
 } from 'pdfjs-dist'
+import { assertPreviewBudget } from './pdf-preview-budget'
 import { MAX_PDF_BYTES } from './pdf-document'
 
 GlobalWorkerOptions.workerSrc = new URL(
@@ -30,7 +31,11 @@ export function acquirePreviewDocument(file: File) {
       if (file.size > MAX_PDF_BYTES) throw new Error('tooLarge')
       const data = await file.arrayBuffer()
       if (created.disposed) throw new Error('Preview cancelled')
-      created.task = getDocument({ data: new Uint8Array(data) })
+      await assertPreviewBudget(new Uint8Array(data))
+      created.task = getDocument({
+        data: new Uint8Array(data),
+        maxImageSize: 32 * 1024 ** 2,
+      })
       return created.task.promise
     })()
     entry = created
