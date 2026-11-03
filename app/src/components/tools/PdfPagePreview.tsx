@@ -1,155 +1,176 @@
 import { useActiveTool } from '@/lib/active-tool-context'
 import { useTranslation } from 'react-i18next'
-import { acquirePreviewDocument } from '@/lib/pdf-preview'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { type RenderTask } from 'pdfjs-dist'
 import { Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-
+import { pdfPreview, type PreviewBitmap } from '@/lib/preview-service'
+import type { ResourceLease } from '@/lib/preview-cache'
+import { DocumentViewer } from './DocumentViewer'
 export interface PageDimensions {
-  canvasW: number // rendered canvas width px
-  canvasH: number // rendered canvas height px
-  ptW: number // original page width in PDF points
-  ptH: number // original page height in PDF points
+  canvasW: number
+  canvasH: number
+  ptW: number
+  ptH: number
 }
-
-interface PdfPagePreviewProps {
+interface Props {
   file: File
-  pageNumber?: number // 1-indexed, default 1
-  maxWidth?: number // default 280
-  rotateDeg?: number // CSS rotation, default 0
+  pageNumber?: number
+  maxWidth?: number
+  rotateDeg?: number
   className?: string
   onDimensions?: (dims: PageDimensions) => void
-  children?: ReactNode // overlays rendered on top of canvas
+  children?: ReactNode
+  interactive?: boolean
 }
-
-/**
- * Renders a single PDF page to a canvas via pdf.js web worker.
- * Children are rendered absolutely on top once the canvas is ready.
- */
 export function PdfPagePreview({
   file,
   pageNumber = 1,
-  maxWidth = 280,
+  maxWidth = 240,
   rotateDeg = 0,
   className,
   onDimensions,
   children,
-}: PdfPagePreviewProps) {
-  const active = useActiveTool()
-  const { t } = useTranslation()
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<
-    'previewUnavailable' | 'highResolutionPreview' | false
-  >(false)
-  const [ready, setReady] = useState(false)
-
+  interactive = true,
+}: Props) {
+  const { t } = useTranslation(),
+    active = useActiveTool(),
+    root = useRef<HTMLDivElement>(null)
+  const [near, setNear] = useState(false),
+    [image, setImage] = useState<PreviewBitmap | null>(null),
+    [error, setError] = useState(''),
+    [viewer, setViewer] = useState(false)
+  const height = Math.round(maxWidth * 1.414)
   useEffect(() => {
-    if (!active) return
-    let cancelled = false
-    const document = acquirePreviewDocument(file)
-    let render: RenderTask | undefined
-    setLoading(true)
-    setError(false)
-    setReady(false)
-
-    ;(async () => {
-      try {
-        const pdf = await document.promise
-        if (cancelled) {
-          document.release()
+    if (!active) {
+      setNear(false)
+      setViewer(false)
+      return
+    }
+    if (typeof IntersectionObserver === 'undefined') {
+      setNear(true)
+      return
+    }
+    const observer = new IntersectionObserver(
+      (entries) => setNear(entries.some((entry) => entry.isIntersecting)),
+      {
+        root: root.current?.closest('[data-preview-scroll]') ?? null,
+        rootMargin: '200px',
+      },
+    )
+    if (root.current) observer.observe(root.current)
+    return () => observer.disconnect()
+  }, [active, file])
+  useEffect(() => {
+    setImage(null)
+    setError('')
+    if (!active || !near) return
+    const controller = new AbortController()
+    let lease: ResourceLease<PreviewBitmap> | undefined
+    void pdfPreview(
+      file,
+      { page: pageNumber, width: maxWidth, height, rotation: 0 },
+      controller.signal,
+    )
+      .then((value) => {
+        if (controller.signal.aborted) {
+          value.release()
           return
         }
-        const page = await pdf.getPage(pageNumber)
-        if (cancelled) {
-          document.release()
-          return
-        }
-
-        const rawVP = page.getViewport({ scale: 1 })
-        const scale = Math.min(maxWidth / rawVP.width, 800 / rawVP.height)
-        const vp = page.getViewport({ scale })
-
-        const canvas = canvasRef.current
-        if (!canvas) {
-          document.release()
-          return
-        }
-        canvas.width = Math.round(vp.width)
-        canvas.height = Math.round(vp.height)
-
-        const ctx = canvas.getContext('2d')!
-        render = page.render({ canvas, canvasContext: ctx, viewport: vp })
-        await render.promise
-        if (cancelled) {
-          document.release()
-          return
-        }
-
+        lease = value
+        setImage(value.value)
         onDimensions?.({
-          canvasW: canvas.width,
-          canvasH: canvas.height,
-          ptW: rawVP.width,
-          ptH: rawVP.height,
+          canvasW: value.value.width,
+          canvasH: value.value.height,
+          ptW: value.value.ptW,
+          ptH: value.value.ptH,
         })
-        setLoading(false)
-        setReady(true)
-        document.release()
-      } catch (reason) {
-        document.release()
-        if (!cancelled) {
+      })
+      .catch((reason) => {
+        if (!controller.signal.aborted)
           setError(
             reason instanceof Error &&
               reason.message === 'highResolutionPreview'
               ? 'highResolutionPreview'
               : 'previewUnavailable',
           )
-          setLoading(false)
-        }
-      }
-    })()
-
+      })
     return () => {
-      cancelled = true
-      render?.cancel()
-      document.release()
+      controller.abort()
+      lease?.release()
     }
-  }, [file, pageNumber, maxWidth, onDimensions, active])
-
-  if (error)
-    return (
-      <p role="status" className="text-xs text-muted-foreground">
-        {t('common.' + error)}
-      </p>
-    )
-
-  return (
+  }, [file, pageNumber, maxWidth, height, active, near, onDimensions])
+  const visual = (
     <div
       className={cn('relative inline-block max-w-full', className)}
       style={{
         transform: rotateDeg ? `rotate(${rotateDeg}deg)` : undefined,
-        transition: 'transform 0.35s cubic-bezier(0.4,0,0.2,1)',
+        transition: 'transform .2s',
       }}
     >
-      {loading && (
-        <div
-          className="flex items-center justify-center rounded border bg-muted/30"
-          style={{ width: maxWidth, height: Math.round(maxWidth * 1.414) }}
+      {image && (
+        <img
+          data-pdf-preview={pageNumber}
+          alt={t('common.previewPage', { page: pageNumber })}
+          src={image.url}
+          width={image.width}
+          height={image.height}
+          className="block max-w-full h-auto rounded border shadow-xs"
+        />
+      )}
+      {image && children}
+    </div>
+  )
+  return (
+    <div
+      ref={root}
+      className="flex max-w-full items-center justify-center"
+      data-preview-state={
+        error ? 'error' : image ? 'ready' : near ? 'loading' : 'idle'
+      }
+      style={{ width: maxWidth, height }}
+    >
+      {error ? (
+        <p
+          role="status"
+          className="max-w-full px-2 text-xs text-muted-foreground"
         >
-          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          {t('common.' + error)}
+        </p>
+      ) : image ? (
+        interactive ? (
+          <button
+            type="button"
+            className="max-w-full rounded"
+            aria-label={t('preview.openPage', { page: pageNumber })}
+            onClick={() => setViewer(true)}
+          >
+            {visual}
+          </button>
+        ) : (
+          visual
+        )
+      ) : (
+        <div
+          className="flex h-full w-full items-center justify-center rounded border bg-muted/30"
+          role="status"
+          aria-label={t('preview.loading', { page: pageNumber })}
+        >
+          {near && (
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          )}
         </div>
       )}
-      <canvas
-        ref={canvasRef}
-        role="img"
-        aria-label={t('common.previewPage', { page: pageNumber })}
-        className={cn(
-          'block max-w-full h-auto rounded border shadow-xs',
-          loading && 'hidden',
-        )}
-      />
-      {ready && children}
+      {viewer && (
+        <DocumentViewer
+          source={{
+            kind: 'pdf',
+            file,
+            pages: image?.pages ?? pageNumber,
+            page: pageNumber - 1,
+          }}
+          onClose={() => setViewer(false)}
+        />
+      )}
     </div>
   )
 }

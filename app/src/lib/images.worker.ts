@@ -1,5 +1,6 @@
 import {
   prepareImageData,
+  createImagePreview,
   convertImages,
   releasePreparedImage,
 } from './images-to-pdf'
@@ -15,12 +16,14 @@ self.onmessage = ({ data }) => {
       const result =
         data.action === 'prepare'
           ? await prepareImageData(data.payload.file, data.payload.key)
-          : await convertImages(
-              data.payload.entries,
-              data.payload.options,
-              (done, total) =>
-                self.postMessage({ id: data.id, progress: [done, total] }),
-            )
+          : data.action === 'preview'
+            ? await createImagePreview(data.payload.file, data.payload.edge)
+            : await convertImages(
+                data.payload.entries,
+                data.payload.options,
+                (done, total) =>
+                  self.postMessage({ id: data.id, progress: [done, total] }),
+              )
       if (result instanceof Uint8Array)
         self.postMessage({ id: data.id, result }, { transfer: [result.buffer] })
       else self.postMessage({ id: data.id, result })

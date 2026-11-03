@@ -88,7 +88,7 @@ test('all tools pass axe in both themes and languages with a working PDF', async
         .click()
       for (const tool of tools) {
         await navigate(page, tool)
-        const canvas = active(page).locator('canvas').first()
+        const canvas = active(page).locator('[data-pdf-preview]').first()
         if (await canvas.count()) await expect(canvas).toBeVisible()
         await scan(page, `${language}-${theme}-${tool}`)
       }

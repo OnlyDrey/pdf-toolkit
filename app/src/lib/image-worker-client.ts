@@ -7,7 +7,7 @@ import type {
 type Reply = {
   id: number
   error?: ImageInputError['code']
-  result?: PreparedImageData | Uint8Array
+  result?: PreparedImageData | Uint8Array | Blob
   progress?: [number, number]
 }
 let worker: Worker | undefined,
@@ -15,7 +15,7 @@ let worker: Worker | undefined,
 const pending = new Map<
   number,
   {
-    resolve: (value: PreparedImageData | Uint8Array) => void
+    resolve: (value: PreparedImageData | Uint8Array | Blob) => void
     reject: (error: ImageInputError) => void
     progress?: (done: number, total: number) => void
   }
@@ -33,10 +33,14 @@ export function imageWorkerRequest(
   progress: (done: number, total: number) => void,
 ): Promise<Uint8Array>
 export function imageWorkerRequest(
-  action: 'prepare' | 'convert',
+  action: 'preview',
+  payload: { file: File; edge: number },
+): Promise<Blob>
+export function imageWorkerRequest(
+  action: 'prepare' | 'convert' | 'preview',
   payload: unknown,
   progress?: (done: number, total: number) => void,
-): Promise<PreparedImageData | Uint8Array> {
+): Promise<PreparedImageData | Uint8Array | Blob> {
   if (!worker) {
     worker = new Worker(new URL('./images.worker.ts', import.meta.url), {
       type: 'module',

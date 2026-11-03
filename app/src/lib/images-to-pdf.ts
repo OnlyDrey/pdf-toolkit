@@ -404,8 +404,9 @@ async function readInfo(file: File): Promise<ImageInfo> {
 async function nativeThumbnail(
   file: File,
   info: ImageInfo,
+  edge = 160,
 ): Promise<Blob | undefined> {
-  const scale = Math.min(1, 160 / info.width, 160 / info.height),
+  const scale = Math.min(1, edge / info.width, edge / info.height),
     width = Math.max(1, Math.round(info.width * scale)),
     height = Math.max(1, Math.round(info.height * scale))
   let bitmap: ImageBitmap | undefined
@@ -432,6 +433,20 @@ async function nativeThumbnail(
     bitmap?.close()
     node.width = node.height = 0
   }
+}
+export async function createImagePreview(
+  file: File,
+  edge: number,
+): Promise<Blob> {
+  const info = await readInfo(file)
+  checkDecodeBudget(info.width, info.height)
+  const blob = await nativeThumbnail(
+    file,
+    info,
+    Math.max(160, Math.min(1600, edge)),
+  )
+  if (!blob) throw new ImageInputError('resource')
+  return blob
 }
 export async function prepareImageData(
   file: File,

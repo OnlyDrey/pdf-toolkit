@@ -18,7 +18,7 @@ import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Separator } from '@/components/ui/separator'
 import { FileDropZone } from './FileDropZone'
-import { PdfPagePreview } from './PdfPagePreview'
+import { PdfPageGrid } from './PdfPageGrid'
 import {
   readFileAsArrayBuffer,
   formatFileSize,
@@ -26,9 +26,6 @@ import {
   parsePageRange,
 } from '@/lib/pdf-utils'
 import { useSession } from '@/lib/session-context'
-import { cn } from '@/lib/utils'
-
-const MAX_PREVIEW = 12
 
 export function Extract() {
   const { t } = useTranslation()
@@ -183,9 +180,6 @@ export function Extract() {
     }
   }
 
-  const previewCount =
-    totalPages !== null ? Math.min(totalPages, MAX_PREVIEW) : 0
-
   return (
     <div className="mx-auto max-w-2xl space-y-4">
       <Card className="tool-card">
@@ -226,8 +220,7 @@ export function Extract() {
                 </Badge>
                 {selected.size > 0 && (
                   <span className="text-xs text-muted-foreground">
-                    {selected.size} {selected.size === 1 ? 'page' : 'pages'}{' '}
-                    selected
+                    {t('common.selectedPages', { count: selected.size })}
                   </span>
                 )}
               </div>
@@ -235,61 +228,13 @@ export function Extract() {
                 <p className="text-xs text-muted-foreground">
                   {t('tools.extract.previewHint')}
                 </p>
-                <div className="flex flex-wrap gap-3">
-                  {Array.from({ length: previewCount }, (_, i) => {
-                    const isSel = selected.has(i)
-                    return (
-                      <button
-                        key={i}
-                        type="button"
-                        aria-label={t('common.pageLabel', { page: i + 1 })}
-                        aria-pressed={isSel}
-                        onClick={() => togglePage(i)}
-                        className={cn(
-                          'relative flex flex-col items-center gap-1 rounded transition-opacity duration-150',
-                          'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
-                          isSel ? 'bg-primary/5' : 'hover:bg-muted/50',
-                        )}
-                      >
-                        <div
-                          className={cn(
-                            'rounded ring-2 transition-all duration-150',
-                            isSel
-                              ? 'ring-primary shadow-md'
-                              : 'ring-transparent hover:ring-primary/30',
-                          )}
-                        >
-                          <PdfPagePreview
-                            file={file}
-                            pageNumber={i + 1}
-                            maxWidth={72}
-                          />
-                        </div>
-                        <span
-                          className={cn(
-                            'text-xs font-medium tabular-nums',
-                            isSel ? 'text-primary' : 'text-muted-foreground',
-                          )}
-                        >
-                          {i + 1}
-                        </span>
-                        {isSel && (
-                          <div
-                            aria-hidden="true"
-                            className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-xs"
-                          >
-                            <CheckCircle2 className="h-3.5 w-3.5" />
-                          </div>
-                        )}
-                      </button>
-                    )
-                  })}
-                  {totalPages > MAX_PREVIEW && (
-                    <div className="flex h-24 w-16 items-center justify-center rounded border border-dashed text-xs text-muted-foreground">
-                      +{totalPages - MAX_PREVIEW}
-                    </div>
-                  )}
-                </div>
+                <PdfPageGrid
+                  file={file}
+                  count={totalPages}
+                  selected={selected}
+                  onSelect={togglePage}
+                  disabled={processing}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="extract-range">

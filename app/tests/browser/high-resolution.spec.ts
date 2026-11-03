@@ -1,3 +1,4 @@
+import { samplePreview } from './pixels'
 import { navigate } from './navigation'
 import { test, expect, type Page } from '@playwright/test'
 import {
@@ -94,6 +95,26 @@ test('10800 × 14400 RGBA PNG above 20 MiB and multiple large images keep all pi
         Math.max(img.naturalWidth, img.naturalHeight),
       ),
   ).toBeLessThanOrEqual(160)
+  await panel(page)
+    .getByRole('button', {
+      name: 'Preview image: 155MP-300dpi.png',
+      exact: true,
+    })
+    .click()
+  const viewer = page.getByRole('dialog', {
+    name: 'Document preview',
+    exact: true,
+  })
+  await expect(viewer.getByText(/lightweight thumbnail is shown/)).toBeVisible()
+  await expect(viewer.locator('img')).toBeVisible()
+  expect(
+    await viewer
+      .locator('img')
+      .evaluate((image: HTMLImageElement) =>
+        Math.max(image.naturalWidth, image.naturalHeight),
+      ),
+  ).toBeLessThanOrEqual(160)
+  await page.keyboard.press('Escape')
   await option(page, 'Page size', 'Original image dimensions')
   await option(page, 'Margins', 'None')
   await panel(page)
@@ -254,20 +275,9 @@ test('streamed 16-bit PNG preserves samples and renders transparency correctly',
     rgb.dict.lookup(PDFName.of('BitsPerComponent'), PDFNumber).asNumber(),
   ).toBe(16)
   await navigate(page, 'rotate')
-  const canvas = page.locator('main > div:not(.hidden) canvas')
+  const canvas = page.locator('main > div:not(.hidden) [data-pdf-preview]')
   await expect(canvas).toBeVisible()
-  const pixel = await canvas.evaluate((c: HTMLCanvasElement) =>
-    Array.from(
-      c
-        .getContext('2d')!
-        .getImageData(
-          Math.floor(c.width * 0.5),
-          Math.floor(c.height * 0.5),
-          1,
-          1,
-        ).data,
-    ),
-  )
+  const pixel = (await samplePreview(canvas, [[0.5, 0.5]]))[0]
   expect(pixel[0]).toBeGreaterThan(135)
   expect(pixel[0]).toBeLessThan(160)
   expect(pixel[2]).toBeGreaterThan(195)

@@ -1,3 +1,4 @@
+import { DocumentViewer } from './DocumentViewer'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
@@ -60,10 +61,12 @@ function ImageRow({
   entry,
   disabled,
   remove,
+  preview,
 }: {
   entry: ImageEntry
   disabled: boolean
   remove: () => void
+  preview: () => void
 }) {
   const { t } = useTranslation()
   const {
@@ -94,20 +97,29 @@ function ImageRow({
       >
         <GripVertical className="h-4 w-4" />
       </button>
-      {entry.thumbnail ? (
-        <img
-          src={entry.thumbnail}
-          alt=""
-          width={48}
-          height={48}
-          className="h-[48px] w-[48px] shrink-0 rounded bg-muted object-contain"
-        />
-      ) : (
-        <Images
-          aria-label={t('common.previewUnavailable')}
-          className="h-12 w-12 shrink-0"
-        />
-      )}
+      <button
+        type="button"
+        onClick={preview}
+        aria-label={t('preview.openImage', { name: entry.file.name })}
+        className="shrink-0 rounded"
+      >
+        {entry.thumbnail ? (
+          <img
+            loading="lazy"
+            decoding="async"
+            src={entry.thumbnail}
+            alt=""
+            width={48}
+            height={48}
+            className="h-[48px] w-[48px] shrink-0 rounded bg-muted object-contain"
+          />
+        ) : (
+          <Images
+            aria-label={t('common.previewUnavailable')}
+            className="h-12 w-12 shrink-0"
+          />
+        )}
+      </button>
       <div className="min-w-0 flex-1">
         <p className="break-words text-sm font-medium [overflow-wrap:anywhere]">
           {entry.file.name}
@@ -143,6 +155,7 @@ export function ImagesToPdf() {
   const mounted = useRef(true)
   const lock = useRef(false)
   const [busy, setBusy] = useState(false)
+  const [view, setView] = useState<number | null>(null)
   const [done, setDone] = useState(false)
   const [progress, setProgress] = useState<{
     stage: 'preparing' | 'converting'
@@ -401,6 +414,11 @@ export function ImagesToPdf() {
                         entry={entry}
                         disabled={busy}
                         remove={() => remove(entry.id)}
+                        preview={() =>
+                          setView(
+                            entries.findIndex((item) => item.id === entry.id),
+                          )
+                        }
                       />
                     ))}
                   </ol>
@@ -451,6 +469,21 @@ export function ImagesToPdf() {
           </Button>
         </CardContent>
       </Card>
+      {view !== null && (
+        <DocumentViewer
+          source={{
+            kind: 'images',
+            items: entries.map((entry) => ({
+              id: entry.id,
+              name: entry.file.name,
+              url: entry.thumbnail,
+              file: entry.file,
+            })),
+            page: view,
+          }}
+          onClose={() => setView(null)}
+        />
+      )}
       <ConfirmationDialog
         open={confirming}
         title={t('tools.images.replaceTitle')}

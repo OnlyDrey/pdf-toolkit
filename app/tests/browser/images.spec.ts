@@ -1,3 +1,4 @@
+import { samplePreview } from './pixels'
 import { navigate } from './navigation'
 import { test, expect, type Page } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
@@ -309,9 +310,13 @@ test('EXIF quarter-turn and mirrored JPEGs render correctly without recompressio
       ),
     ).toBe(true)
   await navigate(page, 'rotate')
-  const canvas = page.locator('main > div:not(.hidden) canvas')
+  const canvas = page.locator('main > div:not(.hidden) [data-pdf-preview]')
   await expect(canvas).toBeVisible()
-  const colors = await canvas.evaluate((c: HTMLCanvasElement) => {
+  const colors = await canvas.evaluate((image: HTMLImageElement) => {
+    const c = document.createElement('canvas')
+    c.width = image.naturalWidth
+    c.height = image.naturalHeight
+    c.getContext('2d')!.drawImage(image, 0, 0)
     const ctx = c.getContext('2d')!
     return [0.25, 0.75].map((y) =>
       Array.from(
@@ -328,22 +333,14 @@ test('EXIF quarter-turn and mirrored JPEGs render correctly without recompressio
   expect(colors[0][2]).toBeLessThan(60)
   expect(colors[1][2]).toBeGreaterThan(200)
   await navigate(page, 'extract')
-  const mirroredCanvas = page.locator('main > div:not(.hidden) canvas').nth(1)
+  const mirroredCanvas = page
+    .locator('main > div:not(.hidden) [data-pdf-preview]')
+    .nth(1)
   await expect(mirroredCanvas).toBeVisible()
-  const reflected = await mirroredCanvas.evaluate((c: HTMLCanvasElement) =>
-    [0.25, 0.75].map((x) =>
-      Array.from(
-        c
-          .getContext('2d')!
-          .getImageData(
-            Math.floor(c.width * x),
-            Math.floor(c.height * 0.5),
-            1,
-            1,
-          ).data,
-      ),
-    ),
-  )
+  const reflected = await samplePreview(mirroredCanvas, [
+    [0.25, 0.5],
+    [0.75, 0.5],
+  ])
   expect(reflected[0][2]).toBeGreaterThan(200)
   expect(reflected[0][0]).toBeLessThan(60)
   expect(reflected[1][0]).toBeGreaterThan(200)
@@ -419,16 +416,9 @@ test('GIF first frame and BMP are explicit; corrupt, unsupported and oversized b
   await create(page)
   expect((await PDFDocument.load(await download(page))).getPageCount()).toBe(2)
   await navigate(page, 'rotate')
-  const canvas = page.locator('main > div:not(.hidden) canvas')
+  const canvas = page.locator('main > div:not(.hidden) [data-pdf-preview]')
   await expect(canvas).toBeVisible()
-  const pixel = await canvas.evaluate((c: HTMLCanvasElement) =>
-    Array.from(
-      c
-        .getContext('2d')!
-        .getImageData(Math.floor(c.width / 2), Math.floor(c.height / 2), 1, 1)
-        .data,
-    ),
-  )
+  const pixel = (await samplePreview(canvas, [[0.5, 0.5]]))[0]
   expect(pixel[0]).toBeGreaterThan(200)
   expect(pixel[2]).toBeLessThan(60)
   await navigate(page, 'images')

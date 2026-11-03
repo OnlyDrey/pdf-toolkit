@@ -16,12 +16,24 @@ interface PreviewDocument {
   task?: PDFDocumentLoadingTask
   references: number
   disposed: boolean
+  idle?: ReturnType<typeof setTimeout>
 }
 // A thumbnail grid shares one parser/worker and source buffer per File.
-const documents = new WeakMap<File, PreviewDocument>()
+const documents = new Map<File, PreviewDocument>()
+function dispose(file: File, entry: PreviewDocument) {
+  entry.disposed = true
+  clearTimeout(entry.idle)
+  documents.delete(file)
+  void entry.task?.destroy().catch(() => {})
+}
 export function acquirePreviewDocument(file: File) {
   let entry = documents.get(file)
   if (!entry) {
+    if (documents.size >= 2) {
+      const idle = Array.from(documents).find(([, value]) => !value.references)
+      if (idle) dispose(...idle)
+      else throw new Error('previewUnavailable')
+    }
     const created: PreviewDocument = {
       references: 0,
       disposed: false,
@@ -32,6 +44,7 @@ export function acquirePreviewDocument(file: File) {
       const data = await file.arrayBuffer()
       if (created.disposed) throw new Error('Preview cancelled')
       await assertPreviewBudget(new Uint8Array(data))
+      if (created.disposed) throw new Error('Preview cancelled')
       created.task = getDocument({
         data: new Uint8Array(data),
         maxImageSize: 32 * 1024 ** 2,
@@ -41,6 +54,7 @@ export function acquirePreviewDocument(file: File) {
     entry = created
     documents.set(file, entry)
   }
+  clearTimeout(entry.idle)
   entry.references++
   const current = entry
   let released = false
@@ -50,9 +64,7 @@ export function acquirePreviewDocument(file: File) {
       if (released) return
       released = true
       if (--current.references === 0) {
-        current.disposed = true
-        documents.delete(file)
-        void current.task?.destroy().catch(() => {})
+        current.idle = setTimeout(() => dispose(file, current), 1000)
       }
     },
   }

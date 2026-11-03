@@ -238,5 +238,22 @@
     "expand": "Utvid sidepanelet",
     "collapse": "Minimer sidepanelet",
     "local": "Privat dokumentarbeidsflate · behandles i nettleseren"
+  },
+  "preview": {
+    "title": "Dokumentvisning",
+    "previous": "Forrige side",
+    "next": "Neste side",
+    "counter": "Side {{page}} av {{count}}",
+    "zoomIn": "Zoom inn",
+    "zoomOut": "Zoom ut",
+    "fitWidth": "Tilpass bredden",
+    "fitPage": "Tilpass siden",
+    "pan": "Rullbar forhåndsvisning",
+    "openPage": "Forhåndsvis side {{page}}",
+    "openImage": "Forhåndsvis bilde: {{name}}",
+    "loading": "Laster side {{page}}",
+    "imageLimited": "Et lett miniatyrbilde vises for å begrense dekodingsminnet. Originalens bildekvalitet er uendret.",
+    "bounded": "Forhåndsvisningen har begrenset oppløsning; eksportoppløsningen er uendret.",
+    "reset": "Nullstill zoom"
   }
 }

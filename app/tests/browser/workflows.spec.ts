@@ -69,7 +69,9 @@ test('merge, session switch, extract, rotate, resize, crop and download', async 
   ).toBe(true)
   await navigate(page, 'extract')
   await expect(visibleTool(page).getByText('Total pages: 3')).toBeVisible()
-  await expect(visibleTool(page).locator('canvas').first()).toBeVisible()
+  await expect(
+    visibleTool(page).locator('[data-pdf-preview]').first(),
+  ).toBeVisible()
   await visibleTool(page).getByRole('textbox').fill('1,3')
   await apply(page)
   expect((await result(page)).getPageCount()).toBe(2)

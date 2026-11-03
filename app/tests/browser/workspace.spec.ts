@@ -14,7 +14,9 @@ test('responsive sidebar preserves tool controls and offers a modal mobile drawe
     mimeType: 'application/pdf',
     buffer: Buffer.from(await pdf.save()),
   })
-  await expect(page.locator('#tool-panel-rotate canvas')).toBeVisible()
+  await expect(
+    page.locator('#tool-panel-rotate [data-pdf-preview]'),
+  ).toBeVisible()
   const rotation = page
     .locator('#tool-panel-rotate')
     .getByRole('combobox', { name: 'Rotation angle', exact: true })

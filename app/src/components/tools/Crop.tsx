@@ -211,7 +211,7 @@ export function Crop() {
                   {t('tools.crop.preview')}
                 </p>
                 <PdfPagePreview
-                  className="overflow-hidden pointer-events-none"
+                  className="overflow-hidden"
                   file={file}
                   maxWidth={240}
                   onDimensions={handleDimensions}

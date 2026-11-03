@@ -218,3 +218,28 @@
 .workspace-tool .tool-card > [aria-busy] {
   padding-inline: 0;
 }
+.document-viewer {
+  width: min(1200px, 100vw);
+  height: 94dvh;
+  max-width: 100vw;
+  max-height: 100dvh;
+  padding: 0;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius);
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+}
+.document-viewer[open] {
+  display: flex;
+  flex-direction: column;
+}
+.document-viewer::backdrop {
+  background: rgb(0 0 0 / 65%);
+}
+@media (max-width: 767px) {
+  .document-viewer {
+    width: 100vw;
+    height: 100dvh;
+    border-radius: 0;
+  }
+}

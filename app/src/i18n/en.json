@@ -238,5 +238,22 @@
     "expand": "Expand sidebar",
     "collapse": "Collapse sidebar",
     "local": "Private document workspace · processed in your browser"
+  },
+  "preview": {
+    "title": "Document preview",
+    "previous": "Previous page",
+    "next": "Next page",
+    "counter": "Page {{page}} of {{count}}",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "fitWidth": "Fit width",
+    "fitPage": "Fit page",
+    "pan": "Scrollable preview",
+    "openPage": "Preview page {{page}}",
+    "openImage": "Preview image: {{name}}",
+    "loading": "Loading page {{page}}",
+    "imageLimited": "A lightweight thumbnail is shown to protect decoding memory. Original image quality is unchanged.",
+    "bounded": "Preview resolution is bounded; export resolution is unchanged.",
+    "reset": "Reset zoom"
   }
 }
