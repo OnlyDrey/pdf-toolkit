@@ -1,5 +1,33 @@
 # Verification and remaining manual checks
 
+## Images to PDF — 2026-11-03
+
+Implemented and validated on work, with no dependency changes, workflow dispatch, PR creation, image publication or release publication. The clean code at `51e6618c49184e20cec40dec4161bfcaf615dcd4` passed the complete shared-engine regression against the fresh production Nginx container. The final documentation commit records these results.
+
+- TypeScript, ESLint, formatting and production build passed; the existing large-bundle advisory remains.
+- **68 unit tests passed**, including 23 new image metadata/EXIF/resource-limit/layout/PDF-placement/transparency cases. All eight EXIF orientations are covered by bounded metadata and transform checks.
+- **67 release-policy tests passed** with existing approval, source, reservation, scan and channel-isolation controls preserved.
+- **44 Python engine tests passed; 4 Windows-only tests skipped** (48 total). Bash syntax and real launcher cleanup dry-run passed. No Windows/PowerShell execution is claimed.
+- **38 browser cases passed** (desktop and Pixel 7 emulation), including 14 new image cases. Actual native JPEG/PNG/WebP/GIF/BMP decoding, ordered page count/dimensions, clipping, alpha masks, JPEG byte preservation, rendered EXIF rotation/mirror pixels, keyboard sorting/removal, image drop/picker, corrupt/TIFF/oversized rejection, progress, duplicate requests and session replacement/failure/race handling were verified. Generated image PDFs continued through Rotate and direct session-to-Merge without a separate download path.
+- Axe reported no violations in **82 scans**: 64 all-tool/theme/language combinations, 10 existing state scans and 8 populated image-queue theme/language combinations. Existing tool/reflow tests include the eighth panel. The new queue was checked at 320px with 200% root text size. This is automated evidence, not WCAG certification.
+- Fresh local **AMD64 Docker build and hardened container checks passed**: UID/GID 101, read-only assets, health, security/cache headers, SPA routes, PDF worker MIME and branding assets. Compose configuration passed. Container image: `sha256:62bab44d558fce6b0bd2619b8154b089922dec98c49aefe8b0bf665ab10187c5`.
+- **npm audit: zero vulnerabilities**. The package manifest and lockfile are unchanged.
+- Captured/reviewed the eight device/theme/language combinations and two replacement dialogs. The new queue/settings follow the existing compact design; mobile settings stack and longer Norwegian navigation wraps without clipping. No visual baselines were silently replaced.
+- Local offline packaging produced provisional `9.9.3-beta.1` from clean code. The manifest, artifact hashes, frontend/outer ZIP integrity, inclusion of the image tool and version-pinned packaged Compose default passed independent verification. Outer ZIP SHA256: `a6f152fe7c1ef2fc40656b7e6808b9caaae495db07446da34dc3516d7e41ec07`. Validation is recorded as `passed-offline`; npm audit ran separately online. This is a local test artifact, not a reserved public release/version.
+
+Resource cleanup is verified by revocation of removed/cleared thumbnail URLs. Native bitmaps and canvases are released in finally blocks; pending upload thumbnails are released on failure/unmount. Queue IDs do not require secure-context-only crypto.randomUUID; the JPEG/session browser path passes with that API absent, supporting plain-HTTP LAN use.
+
+Limits remain explicit: TIFF is deferred after optional-decoder evaluation; GIF/animated WebP use the first frame. Encodings rely on a modern browser with createImageBitmap/canvas PNG support. Browser memory exhaustion can still terminate a tab, and embedding/serialization can pause briefly. JPEG metadata and visually cropped image data may remain embedded. Windows, ARM64 runtime, other browser engines, assistive technology and real browser-chrome zoom were not executed here. Existing release publication/approval/multi-platform settings remain unexecuted and unchanged.
+
+| Phase                                                       | Commit    |
+| ----------------------------------------------------------- | --------- |
+| Image engine and unit coverage                              | `a2c9aa9` |
+| UI, localization, session confirmation and browser coverage | `d60550e` |
+| Documentation and direct session-to-Merge                   | `682aac3` |
+| Plain-HTTP compatibility                                    | `51e6618` |
+
+Every commit contains `[skip ci]` and was pushed only to origin/work. Remote main at task start was `69c6375a2d7bd3b27dd93bd49d32f668bcb6b171`; Codex did not modify it.
+
 ## VersionFix, branding, accessibility and beta channel — 2026-11-01
 
 The final code at `f84e097` passed the complete shared-engine regression locally with Node 24/Python 3.12 and system Chromium, targeting the freshly built hardened Nginx image. No Actions were dispatched and no images, tags or releases were published. The subsequent documentation commit records these results.
