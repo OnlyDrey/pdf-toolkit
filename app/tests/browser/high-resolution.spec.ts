@@ -6,7 +6,7 @@ import {
   PDFRawStream,
   decodePDFRawStream,
 } from 'pdf-lib'
-import { generatedPng, pngChunk } from '../png-fixtures'
+import { generatedPng, pngChunk } from '../../src/lib/__tests__/png-fixtures'
 const panel = (page: Page) => page.locator('#tool-panel-images')
 const option = async (page: Page, label: string, value: string) => {
   await panel(page).getByRole('combobox', { name: label, exact: true }).click()

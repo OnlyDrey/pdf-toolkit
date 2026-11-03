@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest'
 import { inflateSync, deflateSync } from 'node:zlib'
 import { readPng, preparePng, unfilterRow } from '../png-stream'
-import { generatedPng, pngChunk } from '../../../tests/png-fixtures'
+import { generatedPng, pngChunk } from './png-fixtures'
 import {
   imageLayout,
   checkDecodeBudget,
