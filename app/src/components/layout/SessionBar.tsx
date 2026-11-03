@@ -18,11 +18,13 @@ export function SessionBar() {
   const cancel = useRef<HTMLButtonElement>(null)
   const discard = useRef<HTMLButtonElement>(null)
   const restoreToolFocus = () =>
-    requestAnimationFrame(() =>
-      document
-        .querySelector<HTMLButtonElement>('[role="tab"][aria-selected="true"]')
-        ?.focus(),
-    )
+    requestAnimationFrame(() => {
+      const nav = document.querySelector<HTMLButtonElement>(
+        '[data-tool][aria-current="page"]',
+      )
+      if (nav?.getClientRects().length) nav.focus()
+      else document.querySelector<HTMLElement>('.workspace-tool')?.focus()
+    })
   if (!session) return null
 
   const handleDownload = () =>

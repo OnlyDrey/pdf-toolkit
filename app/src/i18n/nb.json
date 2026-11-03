@@ -228,5 +228,15 @@
     "version": "Et fullstendig, støttet PDF-hode må stå i starten av filen.",
     "processing": "Operasjonen mislyktes. Kontroller sidevalg, marger og PDF-filen, og prøv igjen.",
     "fileType": "Velg PDF-filer. Andre filtyper støttes ikke."
+  },
+  "workspace": {
+    "convert": "Konverter",
+    "edit": "Rediger PDF",
+    "utilities": "Verktøy",
+    "openNav": "Åpne verktøy",
+    "closeNav": "Lukk verktøy",
+    "expand": "Utvid sidepanelet",
+    "collapse": "Minimer sidepanelet",
+    "local": "Privat dokumentarbeidsflate · behandles i nettleseren"
   }
 }

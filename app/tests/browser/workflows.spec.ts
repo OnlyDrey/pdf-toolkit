@@ -1,3 +1,4 @@
+import { navigate, showTools } from './navigation'
 import { test, expect, type Page } from '@playwright/test'
 import { PDFDocument } from 'pdf-lib'
 
@@ -66,21 +67,21 @@ test('merge, session switch, extract, rotate, resize, crop and download', async 
       () => document.documentElement.scrollWidth <= window.innerWidth,
     ),
   ).toBe(true)
-  await page.getByRole('tab', { name: 'Extract Pages', exact: true }).click()
+  await navigate(page, 'extract')
   await expect(visibleTool(page).getByText('Total pages: 3')).toBeVisible()
   await expect(visibleTool(page).locator('canvas').first()).toBeVisible()
   await visibleTool(page).getByRole('textbox').fill('1,3')
   await apply(page)
   expect((await result(page)).getPageCount()).toBe(2)
-  await page.getByRole('tab', { name: 'Rotate', exact: true }).click()
+  await navigate(page, 'rotate')
   await apply(page)
   expect((await result(page)).getPage(0).getRotation().angle).toBe(90)
-  await page.getByRole('tab', { name: 'Resize', exact: true }).click()
+  await navigate(page, 'resize')
   await apply(page)
   const resized = (await result(page)).getPage(0)
   expect(resized.getRotation().angle).toBe(90)
   expect(resized.getHeight()).toBeCloseTo(595.28, 0)
-  await page.getByRole('tab', { name: 'Crop', exact: true }).click()
+  await navigate(page, 'crop')
   await visibleTool(page).getByLabel('Top', { exact: true }).fill('10')
   await apply(page)
   const cropped = (await result(page)).getPage(0)
@@ -93,7 +94,7 @@ test('merge, session switch, extract, rotate, resize, crop and download', async 
   await expect(page.getByText('Working on:', { exact: false })).toHaveCount(0)
 })
 test('invalid and encrypted PDFs give useful errors', async ({ page }) => {
-  await page.getByRole('tab', { name: 'Compress', exact: true }).click()
+  await navigate(page, 'compress')
   await upload(page, {
     name: 'bad.pdf',
     mimeType: 'application/pdf',
@@ -128,7 +129,7 @@ test('invalid and encrypted PDFs give useful errors', async ({ page }) => {
 test('compression preserves a non-improving original and header edits explain limitations', async ({
   page,
 }) => {
-  await page.getByRole('tab', { name: 'Compress', exact: true }).click()
+  await navigate(page, 'compress')
   await upload(page, await pdf('optimized.pdf'))
   await apply(page)
   await expect(
@@ -136,7 +137,7 @@ test('compression preserves a non-improving original and header edits explain li
       exact: false,
     }),
   ).toBeVisible()
-  await page.getByRole('tab', { name: 'Version Fix', exact: true }).click()
+  await navigate(page, 'versionFix')
   await expect(
     visibleTool(page).getByText('Edits only the three version characters', {
       exact: false,
@@ -151,9 +152,12 @@ test('theme, language, keyboard upload and responsive layout', async ({
   await page.getByRole('button', { name: 'Dark', exact: true }).click()
   await expect(page.locator('html')).toHaveClass(/dark/)
   await page.getByRole('button', { name: 'NO Norwegian', exact: true }).click()
+  await showTools(page)
   await expect(
-    page.getByRole('tab', { name: 'Slå sammen', exact: true }),
+    page.getByRole('button', { name: 'Slå sammen', exact: true }),
   ).toBeVisible()
+  if (await page.locator('#workspace-menu').isVisible())
+    await page.keyboard.press('Escape')
   await page.getByRole('button', { name: 'EN Engelsk', exact: true }).click()
   const drop = visibleTool(page).getByRole('button', {
     name: 'Drag & drop PDF files here, or click to browse',
@@ -175,12 +179,12 @@ test('theme, language, keyboard upload and responsive layout', async ({
 test('repeated operations use the current result and invalid ranges cannot use stale selections', async ({
   page,
 }) => {
-  await page.getByRole('tab', { name: 'Rotate', exact: true }).click()
+  await navigate(page, 'rotate')
   await upload(page, await pdf('repeat.pdf'))
   await apply(page)
   await apply(page)
   expect((await result(page)).getPage(0).getRotation().angle).toBe(180)
-  await page.getByRole('tab', { name: 'Extract Pages', exact: true }).click()
+  await navigate(page, 'extract')
   await expect(visibleTool(page).getByText('Total pages: 2')).toBeVisible()
   await visibleTool(page)
     .getByRole('button', { name: 'Page 1', exact: true })
@@ -198,7 +202,7 @@ test('repeated operations use the current result and invalid ranges cannot use s
 test('VersionFix allows lower and higher headers without rewriting document contents', async ({
   page,
 }) => {
-  await page.getByRole('tab', { name: 'Version Fix', exact: true }).click()
+  await navigate(page, 'versionFix')
   const input = await pdf('header.pdf')
   await upload(page, input)
   const target = visibleTool(page).getByRole('combobox', {
@@ -229,7 +233,7 @@ test('canonical navbar branding and favicon assets are served as real images', a
   page,
   request,
 }) => {
-  await expect(page.locator('header .brand-mark')).toHaveCSS(
+  await expect(page.locator('.brand-mark').first()).toHaveCSS(
     'mask-image',
     /brand-mark\.svg/,
   )
@@ -256,23 +260,26 @@ test('canonical navbar branding and favicon assets are served as real images', a
 test('keyboard tabs, focus, document language and discard confirmation are predictable', async ({
   page,
 }) => {
-  const merge = page.getByRole('tab', { name: 'Merge', exact: true })
+  const merge = page.locator('#tool-tab-merge')
+  await showTools(page)
   await merge.focus()
-  await page.keyboard.press('ArrowRight')
-  const compress = page.getByRole('tab', { name: 'Compress', exact: true })
-  await expect(compress).toBeFocused()
-  await expect(compress).toHaveAttribute('aria-selected', 'true')
-  await expect(compress).toHaveCSS('outline-style', 'solid')
-  await expect(compress).toHaveCSS('border-left-width', '0px')
-  const controls = await compress.getAttribute('aria-controls')
-  await expect(page.locator('#' + controls)).toHaveAttribute('role', 'tabpanel')
   await page.keyboard.press('Tab')
+  const compress = page.locator('#tool-tab-compress')
+  await expect(compress).toBeFocused()
+  await page.keyboard.press('Enter')
+  await expect(compress).toHaveAttribute('aria-current', 'page')
+  if ((await page.viewportSize())!.width >= 768)
+    await expect(compress).toHaveCSS('outline-style', 'solid')
+
+  const controls = await compress.getAttribute('aria-controls')
+  await expect(page.locator('#' + controls)).toHaveAttribute('role', 'region')
+  await page.locator('#' + controls).focus()
   await expect(page.locator('#' + controls)).toBeFocused()
   await page.getByRole('button', { name: 'NO Norwegian', exact: true }).click()
   await expect(page.locator('html')).toHaveAttribute('lang', 'nb')
   await page.getByRole('button', { name: 'EN Engelsk', exact: true }).click()
   await expect(page.locator('html')).toHaveAttribute('lang', 'en')
-  await page.getByRole('tab', { name: 'Rotate', exact: true }).click()
+  await navigate(page, 'rotate')
   await upload(page, await pdf('confirm.pdf'))
   await apply(page)
   const discard = page.getByRole('button', { name: 'Discard', exact: true })
@@ -289,6 +296,8 @@ test('keyboard tabs, focus, document language and discard confirmation are predi
   await dialog.getByRole('button', { name: 'Discard', exact: true }).click()
   await expect(page.getByText('Working on:', { exact: false })).toHaveCount(0)
   await expect(
-    page.getByRole('tab', { name: 'Rotate', exact: true }),
+    (await page.viewportSize())!.width < 768
+      ? page.locator('#tool-panel-rotate')
+      : page.locator('#tool-tab-rotate'),
   ).toBeFocused()
 })

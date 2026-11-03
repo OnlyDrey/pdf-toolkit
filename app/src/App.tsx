@@ -2,23 +2,14 @@ import { useTranslation } from 'react-i18next'
 import { ActiveToolContext } from '@/lib/active-tool-context'
 import { useState, useCallback } from 'react'
 import { ThemeProvider } from '@/components/layout/ThemeProvider'
-import { Header } from '@/components/layout/Header'
-import { NavTabs, type ToolTab } from '@/components/layout/NavTabs'
+import { WorkspaceShell } from '@/components/layout/WorkspaceShell'
 import { SessionBar } from '@/components/layout/SessionBar'
 import { SessionContext, type SessionFile } from '@/lib/session-context'
-import { ImagesToPdf } from '@/components/tools/ImagesToPdf'
-import { Merge } from '@/components/tools/Merge'
-import { Compress } from '@/components/tools/Compress'
-import { Extract } from '@/components/tools/Extract'
-import { Rotate } from '@/components/tools/Rotate'
-import { Resize } from '@/components/tools/Resize'
-import { Crop } from '@/components/tools/Crop'
-import { VersionFix } from '@/components/tools/VersionFix'
-
+import { TOOLS, type ToolId } from '@/lib/tools'
 export default function App() {
   const { t } = useTranslation()
-  const [activeTab, setActiveTab] = useState<ToolTab>('merge')
-  const [session, setSessionState] = useState<SessionFile | null>(null)
+  const [active, setActive] = useState<ToolId>('merge'),
+    [session, setSessionState] = useState<SessionFile | null>(null)
   const setSession = useCallback(
     (bytes: Uint8Array, name: string) => setSessionState({ bytes, name }),
     [],
@@ -27,108 +18,37 @@ export default function App() {
   return (
     <SessionContext.Provider value={{ session, setSession, clearSession }}>
       <ThemeProvider>
-        <div className="min-h-screen bg-background">
-          <a href="#main-content" className="skip-link">
-            {t('common.skipToContent')}
-          </a>
-          <Header />
-          <NavTabs activeTab={activeTab} onTabChange={setActiveTab} />
+        <WorkspaceShell active={active} onSelect={setActive}>
           <SessionBar />
           <main
             id="main-content"
             tabIndex={-1}
-            className="mx-auto max-w-5xl px-4 py-8"
+            className="workspace-main mx-auto min-w-0 max-w-[1500px] px-4 py-6 md:px-7"
           >
-            <div
-              id="tool-panel-images"
-              role="tabpanel"
-              tabIndex={0}
-              aria-labelledby="tool-tab-images"
-              className={activeTab === 'images' ? '' : 'hidden'}
-            >
-              <ActiveToolContext.Provider value={activeTab === 'images'}>
-                <ImagesToPdf />
-              </ActiveToolContext.Provider>
-            </div>
-            <div
-              id="tool-panel-merge"
-              role="tabpanel"
-              tabIndex={0}
-              aria-labelledby="tool-tab-merge"
-              className={activeTab === 'merge' ? '' : 'hidden'}
-            >
-              <ActiveToolContext.Provider value={activeTab === 'merge'}>
-                <Merge />
-              </ActiveToolContext.Provider>
-            </div>
-            <div
-              id="tool-panel-compress"
-              role="tabpanel"
-              tabIndex={0}
-              aria-labelledby="tool-tab-compress"
-              className={activeTab === 'compress' ? '' : 'hidden'}
-            >
-              <ActiveToolContext.Provider value={activeTab === 'compress'}>
-                <Compress />
-              </ActiveToolContext.Provider>
-            </div>
-            <div
-              id="tool-panel-extract"
-              role="tabpanel"
-              tabIndex={0}
-              aria-labelledby="tool-tab-extract"
-              className={activeTab === 'extract' ? '' : 'hidden'}
-            >
-              <ActiveToolContext.Provider value={activeTab === 'extract'}>
-                <Extract />
-              </ActiveToolContext.Provider>
-            </div>
-            <div
-              id="tool-panel-rotate"
-              role="tabpanel"
-              tabIndex={0}
-              aria-labelledby="tool-tab-rotate"
-              className={activeTab === 'rotate' ? '' : 'hidden'}
-            >
-              <ActiveToolContext.Provider value={activeTab === 'rotate'}>
-                <Rotate />
-              </ActiveToolContext.Provider>
-            </div>
-            <div
-              id="tool-panel-resize"
-              role="tabpanel"
-              tabIndex={0}
-              aria-labelledby="tool-tab-resize"
-              className={activeTab === 'resize' ? '' : 'hidden'}
-            >
-              <ActiveToolContext.Provider value={activeTab === 'resize'}>
-                <Resize />
-              </ActiveToolContext.Provider>
-            </div>
-            <div
-              id="tool-panel-crop"
-              role="tabpanel"
-              tabIndex={0}
-              aria-labelledby="tool-tab-crop"
-              className={activeTab === 'crop' ? '' : 'hidden'}
-            >
-              <ActiveToolContext.Provider value={activeTab === 'crop'}>
-                <Crop />
-              </ActiveToolContext.Provider>
-            </div>
-            <div
-              id="tool-panel-versionFix"
-              role="tabpanel"
-              tabIndex={0}
-              aria-labelledby="tool-tab-versionFix"
-              className={activeTab === 'versionFix' ? '' : 'hidden'}
-            >
-              <ActiveToolContext.Provider value={activeTab === 'versionFix'}>
-                <VersionFix />
-              </ActiveToolContext.Provider>
-            </div>
+            <header className="mb-6">
+              <h1 className="text-2xl font-semibold tracking-tight">
+                {t('tools.' + active + '.title')}
+              </h1>
+              <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
+                {t('tools.' + active + '.description')}
+              </p>
+            </header>
+            {TOOLS.map(({ id, component: Tool }) => (
+              <div
+                key={id}
+                id={'tool-panel-' + id}
+                role="region"
+                aria-label={t('nav.' + id)}
+                tabIndex={0}
+                className={active === id ? 'workspace-tool' : 'hidden'}
+              >
+                <ActiveToolContext.Provider value={active === id}>
+                  <Tool />
+                </ActiveToolContext.Provider>
+              </div>
+            ))}
           </main>
-        </div>
+        </WorkspaceShell>
       </ThemeProvider>
     </SessionContext.Provider>
   )

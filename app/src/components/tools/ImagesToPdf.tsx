@@ -312,8 +312,8 @@ export function ImagesToPdf() {
   )
   return (
     <div className="mx-auto max-w-2xl space-y-4">
-      <Card>
-        <CardHeader>
+      <Card className="tool-card">
+        <CardHeader className="tool-heading">
           <CardTitle className="flex items-center gap-2">
             <Images className="h-5 w-5" />
             {t('tools.images.title')}

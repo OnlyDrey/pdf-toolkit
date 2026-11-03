@@ -1,3 +1,4 @@
+import { navigate } from './navigation'
 import { test, expect, type Page } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
 import { PDFDocument } from 'pdf-lib'
@@ -23,7 +24,7 @@ async function fixture(page: Page) {
   }
   await page.goto('/')
   await page.getByRole('button', { name: 'EN English', exact: true }).click()
-  await page.locator('#tool-tab-rotate').click()
+  await navigate(page, 'rotate')
   await active(page).locator('input[type=file]').setInputFiles(input)
   await active(page).getByRole('button', { name: 'Apply', exact: true }).click()
   await expect(
@@ -66,7 +67,7 @@ test('all tools pass axe in both themes and languages with a working PDF', async
 }) => {
   test.setTimeout(180000)
   const input = await fixture(page)
-  await page.locator('#tool-tab-merge').click()
+  await navigate(page, 'merge')
   await active(page)
     .locator('input[type=file]')
     .setInputFiles([input, { ...input, name: 'second.pdf' }])
@@ -86,7 +87,7 @@ test('all tools pass axe in both themes and languages with a working PDF', async
         })
         .click()
       for (const tool of tools) {
-        await page.locator('#tool-tab-' + tool).click()
+        await navigate(page, tool)
         const canvas = active(page).locator('canvas').first()
         if (await canvas.count()) await expect(canvas).toBeVisible()
         await scan(page, `${language}-${theme}-${tool}`)
@@ -99,12 +100,12 @@ test('axe covers validation feedback, processing, dropdowns and discard dialog',
 }) => {
   test.setTimeout(90000)
   const input = await fixture(page)
-  await page.locator('#tool-tab-crop').click()
+  await navigate(page, 'crop')
   await active(page).getByLabel('Top', { exact: true }).fill('99999')
   await active(page).getByRole('button', { name: 'Apply', exact: true }).click()
   await expect(active(page).getByRole('alert')).toBeVisible()
   await scan(page, 'crop-error')
-  await page.locator('#tool-tab-resize').click()
+  await navigate(page, 'resize')
   await active(page).getByRole('combobox', { name: 'Paper size' }).click()
   await page.getByRole('option').first().waitFor()
   await expect(page.locator('#root')).toHaveJSProperty('inert', true)
@@ -118,7 +119,7 @@ test('axe covers validation feedback, processing, dropdowns and discard dialog',
   await expect(page.getByRole('alertdialog')).toHaveJSProperty('open', true)
   await scan(page, 'discard-confirmation', '[role=alertdialog]')
   await page.keyboard.press('Escape')
-  await page.locator('#tool-tab-compress').click()
+  await navigate(page, 'compress')
   await active(page)
     .locator('input[type=file]')
     .setInputFiles({
@@ -137,7 +138,7 @@ test('axe covers validation feedback, processing, dropdowns and discard dialog',
   })
   await page.reload()
   await page.getByRole('button', { name: 'EN English', exact: true }).click()
-  await page.locator('#tool-tab-compress').click()
+  await navigate(page, 'compress')
   await active(page).locator('input[type=file]').setInputFiles(input)
   await active(page).getByRole('button', { name: 'Apply', exact: true }).click()
   await expect(
@@ -153,8 +154,8 @@ test('reflow at 320/640 CSS pixels and 200% text sizing keeps every tool reachab
   for (const width of [320, 640]) {
     await page.setViewportSize({ width, height: 800 })
     for (const tool of tools) {
-      await page.locator('#tool-tab-' + tool).click()
-      await expect(page.locator('#tool-tab-' + tool)).toBeVisible()
+      await navigate(page, tool)
+      await expect(page.locator('#tool-panel-' + tool)).toBeVisible()
       expect(
         await page.evaluate(
           () => document.documentElement.scrollWidth <= window.innerWidth,
@@ -169,7 +170,7 @@ test('reflow at 320/640 CSS pixels and 200% text sizing keeps every tool reachab
   })
   await expect(page.locator('html')).toHaveCSS('font-size', '32px')
   for (const tool of tools) {
-    await page.locator('#tool-tab-' + tool).click()
+    await navigate(page, tool)
     expect(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= window.innerWidth,
@@ -188,7 +189,7 @@ test('keyboard reordering, invalid drops and confirmation focus stay accessible'
   page,
 }) => {
   const input = await fixture(page)
-  await page.locator('#tool-tab-merge').click()
+  await navigate(page, 'merge')
   await active(page)
     .locator('input[type=file]')
     .setInputFiles([input, { ...input, name: 'second.pdf' }])

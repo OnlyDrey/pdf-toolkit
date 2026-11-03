@@ -1,3 +1,4 @@
+import { navigate } from './navigation'
 import { test, expect, type Page } from '@playwright/test'
 import {
   PDFDocument,
@@ -33,7 +34,7 @@ function images(doc: PDFDocument) {
 test.beforeEach(async ({ page }) => {
   await page.goto('/')
   await page.getByRole('button', { name: 'EN English', exact: true }).click()
-  await page.locator('#tool-tab-images').click()
+  await navigate(page, 'images')
 })
 test('10800 × 14400 RGBA PNG above 20 MiB and multiple large images keep all pixels and 300 DPI', async ({
   page,
@@ -125,7 +126,7 @@ test('10800 × 14400 RGBA PNG above 20 MiB and multiple large images keep all pi
   expect(decoded[0]).toBe(0)
   expect(decoded[1]).toBe(128)
   expect(decoded[decoded.length - 1]).toBe(128)
-  await page.locator('#tool-tab-rotate').click()
+  await navigate(page, 'rotate')
   const active = page.locator('main > div:not(.hidden)')
   await expect(
     active.getByText(/Preview skipped to limit decoding memory/),
@@ -252,7 +253,7 @@ test('streamed 16-bit PNG preserves samples and renders transparency correctly',
   expect(
     rgb.dict.lookup(PDFName.of('BitsPerComponent'), PDFNumber).asNumber(),
   ).toBe(16)
-  await page.locator('#tool-tab-rotate').click()
+  await navigate(page, 'rotate')
   const canvas = page.locator('main > div:not(.hidden) canvas')
   await expect(canvas).toBeVisible()
   const pixel = await canvas.evaluate((c: HTMLCanvasElement) =>

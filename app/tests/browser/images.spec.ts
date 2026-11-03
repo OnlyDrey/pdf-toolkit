@@ -1,3 +1,4 @@
+import { navigate } from './navigation'
 import { test, expect, type Page } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
 import {
@@ -85,7 +86,7 @@ function operations(doc: PDFDocument) {
 test.beforeEach(async ({ page }) => {
   await page.goto('/')
   await page.getByRole('button', { name: 'EN English', exact: true }).click()
-  await page.locator('#tool-tab-images').click()
+  await navigate(page, 'images')
 })
 test('JPEG keeps original data, uses centered A4 and continues through the shared editing session', async ({
   page,
@@ -112,7 +113,7 @@ test('JPEG keeps original data, uses centered A4 and continues through the share
   )!
   expect(Buffer.from(raw.getContents())).toEqual(jpg.buffer)
   expect(operations(doc)).toContain('24 24 793.89 547.28 re')
-  await page.locator('#tool-tab-rotate').click()
+  await navigate(page, 'rotate')
   await page
     .locator('main > div:not(.hidden)')
     .getByRole('button', { name: 'Apply', exact: true })
@@ -126,7 +127,7 @@ test('JPEG keeps original data, uses centered A4 and continues through the share
     (await PDFDocument.load(await download(page))).getPage(0).getRotation()
       .angle,
   ).toBe(90)
-  await page.locator('#tool-tab-merge').click()
+  await navigate(page, 'merge')
   const merge = page.locator('main > div:not(.hidden)')
   await merge
     .getByRole('button', { name: /Session: images_rotated.pdf/ })
@@ -307,7 +308,7 @@ test('EXIF quarter-turn and mirrored JPEGs render correctly without recompressio
         Buffer.from(stream.getContents()).equals(bytes),
       ),
     ).toBe(true)
-  await page.locator('#tool-tab-rotate').click()
+  await navigate(page, 'rotate')
   const canvas = page.locator('main > div:not(.hidden) canvas')
   await expect(canvas).toBeVisible()
   const colors = await canvas.evaluate((c: HTMLCanvasElement) => {
@@ -326,7 +327,7 @@ test('EXIF quarter-turn and mirrored JPEGs render correctly without recompressio
   expect(colors[0][0]).toBeGreaterThan(200)
   expect(colors[0][2]).toBeLessThan(60)
   expect(colors[1][2]).toBeGreaterThan(200)
-  await page.locator('#tool-tab-extract').click()
+  await navigate(page, 'extract')
   const mirroredCanvas = page.locator('main > div:not(.hidden) canvas').nth(1)
   await expect(mirroredCanvas).toBeVisible()
   const reflected = await mirroredCanvas.evaluate((c: HTMLCanvasElement) =>
@@ -417,7 +418,7 @@ test('GIF first frame and BMP are explicit; corrupt, unsupported and oversized b
   ).toBeVisible()
   await create(page)
   expect((await PDFDocument.load(await download(page))).getPageCount()).toBe(2)
-  await page.locator('#tool-tab-rotate').click()
+  await navigate(page, 'rotate')
   const canvas = page.locator('main > div:not(.hidden) canvas')
   await expect(canvas).toBeVisible()
   const pixel = await canvas.evaluate((c: HTMLCanvasElement) =>
@@ -430,7 +431,7 @@ test('GIF first frame and BMP are explicit; corrupt, unsupported and oversized b
   )
   expect(pixel[0]).toBeGreaterThan(200)
   expect(pixel[2]).toBeLessThan(60)
-  await page.locator('#tool-tab-images').click()
+  await navigate(page, 'images')
   await panel(page)
     .getByRole('button', { name: 'Clear images', exact: true })
     .click()
