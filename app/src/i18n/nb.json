@@ -217,7 +217,7 @@
         "sessionChanged": "Arbeidsfilen ble endret under konverteringen. Den er beholdt; opprett bilde-PDF-en på nytt når du er klar.",
         "resource": "Denne kodingen krever mer dekodingsminne enn nettleserens budsjett tillater. Prøv en ikke-interlacet RGB/RGBA-PNG eller JPEG, en mindre gruppe, eller en enhet med mer minne.",
         "encoding": "Denne PNG-kodingen støttes ikke av strømmebehandlingen i nettleseren. Eksporter en ikke-interlacet RGB/RGBA-PNG eller JPEG, eller prøv en oppdatert nettleser. Bildet er ikke automatisk nedskalert.",
-        "pageSize": "Originalstørrelsen overskrider PDF-sidegrensen (200 tommer / 14 400 punkter). Velg A4 eller Letter, eller korriger kildens DPI. Innebygde bildepiksler reduseres ikke."
+        "pageSize": "Originalstørrelsen overskrider verktøyets kompatible PDF-sidegrense (200 tommer / 14 400 standardpunkter). Velg A4 eller Letter, eller korriger kildens DPI. Innebygde bildepiksler reduseres ikke."
       }
     }
   },

@@ -217,7 +217,7 @@
         "sessionChanged": "The working PDF changed during conversion. It has been kept; create the image PDF again when ready.",
         "resource": "This encoding needs more decoding memory than the browser budget allows. Try a non-interlaced RGB/RGBA PNG or JPEG, a smaller batch, or a device with more memory.",
         "encoding": "This PNG encoding is not supported by the streaming path in this browser. Export a non-interlaced RGB/RGBA PNG or JPEG, or try a current browser. No automatic downscaling was applied.",
-        "pageSize": "Original Size would exceed the PDF page bound (200 inches / 14,400 points). Choose A4 or Letter, or correct the source DPI. Embedded image pixels are not reduced."
+        "pageSize": "Original Size exceeds the compatible PDF page bound used here (200 inches / 14,400 default points). Choose A4 or Letter, or correct the source DPI. Embedded image pixels are not reduced."
       }
     }
   },

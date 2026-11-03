@@ -116,10 +116,10 @@ it('preserves 16-bit color and alpha samples instead of reducing source precisio
     raster = await preparePng(file, source)
   expect(raster.depth).toBe(16)
   expect(Array.from(inflateSync(raster.colors).subarray(0, 7))).toEqual([
-    0, 40, 0, 90, 0, 160, 0,
+    0, 40, 17, 90, 33, 160, 57,
   ])
   expect(Array.from(inflateSync(raster.alpha!).subarray(0, 5))).toEqual([
-    0, 128, 0, 128, 0,
+    0, 128, 91, 128, 91,
   ])
   expect(Array.from(raster.thumbnail.subarray(4, 8))).toEqual([
     40, 90, 160, 128,

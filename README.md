@@ -4,7 +4,7 @@ Simple PDF tools in English and Norwegian Bokmål, processed entirely in your br
 
 ## Features
 
-Convert images to PDF, merge, extract, rotate, resize, crop, structurally compress and inspect PDF version headers. Images to PDF supports JPEG, PNG, WebP, GIF and BMP with page sizing, thumbnails and reordering. Apply changes to a shared working file, switch tools and download when finished. Light, dark and system themes are included.
+Convert images to PDF, merge, extract, rotate, resize, crop, structurally compress and inspect PDF version headers. Images to PDF supports JPEG, PNG, WebP, GIF and BMP with page sizing, thumbnails and reordering. High-resolution JPEG/PNG processing preserves source pixels; see the [format and memory guidance](docs/DEPLOYMENT.md#images-to-pdf). Apply changes to a shared working file, switch tools and download when finished. Light, dark and system themes are included.
 
 ## Privacy-first architecture
 

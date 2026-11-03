@@ -32,7 +32,9 @@ export async function generatedPng(
       depth === 8
         ? Buffer.from(alpha ? [40, 90, 160, 128] : [40, 90, 160])
         : Buffer.from(
-            alpha ? [40, 0, 90, 0, 160, 0, 128, 0] : [40, 0, 90, 0, 160, 0],
+            alpha
+              ? [40, 17, 90, 33, 160, 57, 128, 91]
+              : [40, 17, 90, 33, 160, 57],
           )
   // Sub filtering: one pixel followed by zero deltas, avoiding a giant fixture allocation.
   const row = Buffer.alloc(width * channels * (depth / 8) + 1)
