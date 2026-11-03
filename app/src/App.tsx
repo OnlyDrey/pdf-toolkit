@@ -6,6 +6,7 @@ import { Header } from '@/components/layout/Header'
 import { NavTabs, type ToolTab } from '@/components/layout/NavTabs'
 import { SessionBar } from '@/components/layout/SessionBar'
 import { SessionContext, type SessionFile } from '@/lib/session-context'
+import { ImagesToPdf } from '@/components/tools/ImagesToPdf'
 import { Merge } from '@/components/tools/Merge'
 import { Compress } from '@/components/tools/Compress'
 import { Extract } from '@/components/tools/Extract'
@@ -38,6 +39,17 @@ export default function App() {
             tabIndex={-1}
             className="mx-auto max-w-5xl px-4 py-8"
           >
+            <div
+              id="tool-panel-images"
+              role="tabpanel"
+              tabIndex={0}
+              aria-labelledby="tool-tab-images"
+              className={activeTab === 'images' ? '' : 'hidden'}
+            >
+              <ActiveToolContext.Provider value={activeTab === 'images'}>
+                <ImagesToPdf />
+              </ActiveToolContext.Provider>
+            </div>
             <div
               id="tool-panel-merge"
               role="tabpanel"

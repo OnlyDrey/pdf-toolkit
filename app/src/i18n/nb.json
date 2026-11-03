@@ -11,7 +11,8 @@
     "resize": "Endre størrelse",
     "crop": "Beskjær",
     "versionFix": "Versjonsfix",
-    "tools": "PDF-verktøy"
+    "tools": "PDF-verktøy",
+    "images": "Bilder til PDF"
   },
   "session": {
     "working": "Arbeider med",
@@ -168,6 +169,53 @@
       "details": "Støtte i eldre lesere og PDF/A garanteres ikke. Ustøttede funksjoner beholdes, katalogversjonen kan overstyre filhodet, og endringen kan ugyldiggjøre digitale signaturer.",
       "lowerWarning": "Et eldre filhode gjør ikke nyere PDF-funksjoner kompatible med eldre lesere.",
       "catalogWarning": "Dokumentkatalogen angir fortsatt PDF {{version}} og kan overstyre filhodet. Kompatibilitet med eldre lesere garanteres ikke."
+    },
+    "images": {
+      "title": "Bilder til PDF",
+      "description": "Samle bilder i en PDF, ett bilde per side. Endre rekkefølgen før du oppretter arbeidsdokumentet.",
+      "upload": "Dra og slipp bilder her, eller klikk for å velge",
+      "formats": "JPEG, PNG, WebP, GIF og BMP · flere filer støttes",
+      "frameNote": "GIF og animert WebP bruker bare første bilde. TIFF støttes ikke.",
+      "sizingNote": "Originalstørrelse bruker 96 DPI (96 piksler = 1 tomme); marger legges til siden. Små marger: 12 pt; normale: 24 pt. Tilpass bevarer hele bildet; Fyll beskjærer til området innenfor margene.",
+      "selected": "Valgte bilder",
+      "count_one": "{{count}} bilde",
+      "count_other": "{{count}} bilder",
+      "dimensions": "{{width}} × {{height}} piksler",
+      "clear": "Tøm bildelisten",
+      "reorder": "Dra for å endre rekkefølge: {{name}}",
+      "preparing": "Klargjør bilde {{done}} av {{total}}…",
+      "converting": "Konverterer bilde {{done}} av {{total}}…",
+      "size": "Sidestørrelse",
+      "a4": "A4",
+      "letter": "Letter",
+      "original": "Opprinnelige bildedimensjoner (96 DPI)",
+      "orientation": "Retning",
+      "auto": "Automatisk",
+      "portrait": "Stående",
+      "landscape": "Liggende",
+      "fit": "Bildetilpasning",
+      "contain": "Tilpass / behold hele",
+      "cover": "Fyll / beskjær",
+      "margin": "Marger",
+      "none": "Ingen",
+      "small": "Små",
+      "normal": "Normale",
+      "action": "Opprett PDF",
+      "success": "PDF klar. Bruk verktøylinjen for arbeidsfilen for å laste ned eller fortsette redigeringen.",
+      "replaceTitle": "Erstatte arbeidsfilen?",
+      "replaceDescription": "Den gjeldende PDF-arbeidsfilen blir erstattet. Last den ned først hvis du vil beholde den. Bildene beholdes hvis konverteringen mislykkes.",
+      "replaceAction": "Erstatt og opprett PDF",
+      "errors": {
+        "type": "Velg et støttet bilde: JPEG, PNG, WebP, GIF eller BMP. Filen må inneholde bildedata.",
+        "tiff": "TIFF støttes ikke. Eksporter første side som PNG eller JPEG først; flere sider importeres ikke.",
+        "corrupt": "Bildet kunne ikke leses. Det kan være skadet eller bruke en koding som ikke støttes.",
+        "large": "Bildegrense: 20 MiB, 40 megapiksler og 16 384 piksler per side. Reduser størrelsen og prøv igjen.",
+        "batch": "Grense per gruppe: 100 bilder, 100 MiB kildefiler og totalt 100 megapiksler. Bruk en mindre gruppe.",
+        "empty": "Legg til minst ett bilde.",
+        "processing": "Kunne ikke opprette PDF-en. Prøv færre eller mindre bilder, eller et annet støttet format.",
+        "output": "Den genererte PDF-en overstiger grensen på 100 MiB for arbeidsdokumenter. Bruk færre eller mindre bilder.",
+        "sessionChanged": "Arbeidsfilen ble endret under konverteringen. Den er beholdt; opprett bilde-PDF-en på nytt når du er klar."
+      }
     }
   },
   "errors": {

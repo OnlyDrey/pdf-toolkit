@@ -3,6 +3,7 @@ import AxeBuilder from '@axe-core/playwright'
 import { PDFDocument } from 'pdf-lib'
 
 const tools = [
+  'images',
   'merge',
   'compress',
   'extract',

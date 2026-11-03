@@ -9,6 +9,7 @@ import { Upload, FileText } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { cn } from '@/lib/utils'
 interface FileDropZoneProps {
+  kind?: 'pdf' | 'image'
   disabled?: boolean
   multiple?: boolean
   onFiles: (files: File[]) => void
@@ -19,6 +20,7 @@ interface FileDropZoneProps {
   onUseSession?: () => void
 }
 export function FileDropZone({
+  kind = 'pdf',
   disabled = false,
   multiple = false,
   onFiles,
@@ -35,6 +37,7 @@ export function FileDropZone({
   const acceptFiles = (files: File[]) => {
     if (disabled || !files.length) return
     if (
+      kind === 'pdf' &&
       files.some(
         (f) =>
           f.type !== 'application/pdf' &&
@@ -102,12 +105,16 @@ export function FileDropZone({
         ) : (
           <>
             <p className="text-sm font-medium text-foreground">
-              {multiple
-                ? t('common.dragDropMultiple')
-                : t('common.dragDropHere')}
+              {kind === 'image'
+                ? t('tools.images.upload')
+                : multiple
+                  ? t('common.dragDropMultiple')
+                  : t('common.dragDropHere')}
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
-              {t('common.fileType')}
+              {kind === 'image'
+                ? t('tools.images.formats')
+                : t('common.fileType')}
             </p>
           </>
         )}
@@ -115,10 +122,18 @@ export function FileDropZone({
           ref={inputRef}
           type="file"
           aria-label={
-            multiple ? t('common.dragDropMultiple') : t('common.dragDropHere')
+            kind === 'image'
+              ? t('tools.images.upload')
+              : multiple
+                ? t('common.dragDropMultiple')
+                : t('common.dragDropHere')
           }
           disabled={disabled}
-          accept=".pdf,application/pdf"
+          accept={
+            kind === 'image'
+              ? '.jpg,.jpeg,.png,.webp,.gif,.bmp,image/jpeg,image/png,image/webp,image/gif,image/bmp'
+              : '.pdf,application/pdf'
+          }
           multiple={multiple}
           className="hidden"
           onChange={handleChange}
