@@ -197,7 +197,7 @@ test('PNG/JPEG/WebP reorder and removal preserve page order, transparency and re
       }
     }, removed),
   ).toBe(true)
-  await select(page, 'Page size', 'Original image dimensions (96 DPI)')
+  await select(page, 'Page size', 'Original image dimensions')
   await select(page, 'Margins', 'None')
   await create(page)
   const pdf = await PDFDocument.load(await download(page))
@@ -292,7 +292,7 @@ test('EXIF quarter-turn and mirrored JPEGs render correctly without recompressio
     mirrored = addExif(2)
   await upload(page, [rotated, mirrored])
   await expect(panel(page).getByText('40 × 80 px')).toBeVisible()
-  await select(page, 'Page size', 'Original image dimensions (96 DPI)')
+  await select(page, 'Page size', 'Original image dimensions')
   await select(page, 'Margins', 'None')
   await create(page)
   const doc = await PDFDocument.load(await download(page))
@@ -457,7 +457,7 @@ test('GIF first frame and BMP are explicit; corrupt, unsupported and oversized b
       name: 'large.png',
       mimeType: 'image/png',
       buffer: Buffer.alloc(20 * 1024 * 1024 + 1),
-      message: 'Image limit',
+      message: 'Choose a supported image',
     },
   ]
   for (const f of invalid) {
@@ -478,7 +478,9 @@ test('GIF first frame and BMP are explicit; corrupt, unsupported and oversized b
         buffer: gif,
       })),
     )
-  await expect(panel(page).getByRole('alert')).toContainText('Batch limit')
+  await expect(panel(page).getByRole('alert')).toContainText(
+    'at most 100 images',
+  )
 })
 test('session replacement is confirmed, cancellation retains the PDF, and duplicate requests are blocked', async ({
   page,
@@ -505,6 +507,10 @@ test('session replacement is confirmed, cancellation retains the PDF, and duplic
   await expect(button).toBeFocused()
   expect(await download(page)).toEqual(before)
   await page.evaluate(() => {
+    Object.defineProperty(window, 'Worker', {
+      value: undefined,
+      configurable: true,
+    })
     const original = window.createImageBitmap
     const state = window as Window & { imageDecodes: number }
     state.imageDecodes = 0
@@ -632,6 +638,10 @@ test('conversion failure and a concurrent session change never discard existing 
     .click()
   await upload(page, [await image(page, 'new.webp', 'image/webp')])
   await page.evaluate(() => {
+    Object.defineProperty(window, 'Worker', {
+      value: undefined,
+      configurable: true,
+    })
     const original = window.createImageBitmap
     window.createImageBitmap = (() => {
       window.createImageBitmap = original
@@ -650,6 +660,10 @@ test('conversion failure and a concurrent session change never discard existing 
   )
   expect(await download(page)).toEqual(before)
   await page.evaluate(() => {
+    Object.defineProperty(window, 'Worker', {
+      value: undefined,
+      configurable: true,
+    })
     const original = window.createImageBitmap
     window.createImageBitmap = (async (
       ...args: Parameters<typeof createImageBitmap>

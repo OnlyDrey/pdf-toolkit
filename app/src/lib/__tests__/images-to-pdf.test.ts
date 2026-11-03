@@ -14,7 +14,6 @@ import {
   validateImageSize,
   addImagePage,
   DEFAULT_IMAGE_OPTIONS as defaults,
-  IMAGE_LIMITS,
 } from '../images-to-pdf'
 const png = Uint8Array.from(
   atob(
@@ -41,28 +40,18 @@ describe('image metadata and limits', () => {
       inspectImage(new Uint8Array([255, 216, 255, 225, 255, 255])),
     ).toThrow('corrupt')
   })
-  it('rejects oversized dimensions/files/batches before decoding', () => {
-    expect(() => validateImageSize(10000, 10000)).toThrow('large')
-    expect(() => validateImageSize(16385, 1)).toThrow('large')
+  it('accepts high-resolution images and large files without arbitrary pixel/byte caps', () => {
+    expect(() => validateImageSize(10800, 14400)).not.toThrow()
+    expect(() => validateImageSize(30000, 2000)).not.toThrow()
     expect(() => validateImageSize(0, 1)).toThrow('corrupt')
+    expect(() => validateImageBatch([{ size: 200 * 1024 ** 2 }])).not.toThrow()
     expect(() => validateImageBatch([])).toThrow('empty')
-    expect(() =>
-      validateImageBatch([{ size: 1 }], IMAGE_LIMITS.batchPixels + 1),
-    ).toThrow('batch')
-    expect(() =>
-      validateImageBatch([{ size: IMAGE_LIMITS.fileBytes + 1 }]),
-    ).toThrow('large')
     expect(() =>
       validateImageBatch(Array.from({ length: 101 }, () => ({ size: 1 }))),
     ).toThrow('batch')
-    expect(() =>
-      validateImageBatch(
-        Array.from({ length: 6 }, () => ({ size: IMAGE_LIMITS.fileBytes })),
-      ),
-    ).toThrow('batch')
     const bytes = png.slice()
     new DataView(bytes.buffer).setUint32(16, 20000)
-    expect(() => inspectImage(bytes)).toThrow('large')
+    expect(inspectImage(bytes).width).toBe(20000)
   })
   it.each([1, 2, 3, 4, 5, 6, 7, 8])(
     'reads bounded EXIF orientation %i',
@@ -125,6 +114,21 @@ describe('image metadata and limits', () => {
   )
 })
 describe('PDF layout and orientation', () => {
+  it('uses source DPI without downscaling and rejects only incompatible physical pages', () => {
+    expect(
+      imageLayout(
+        10800,
+        14400,
+        { ...defaults, size: 'original', margin: 'none' },
+        300,
+        300,
+      ),
+    ).toMatchObject({ pageWidth: 2592, pageHeight: 3456 })
+    expect(() =>
+      imageLayout(30000, 1000, { ...defaults, size: 'original' }),
+    ).toThrow('pageSize')
+    expect(() => imageLayout(30000, 1000, defaults)).not.toThrow()
+  })
   it('uses centered contain, A4 auto and normal margins', () => {
     const l = imageLayout(200, 400, defaults)
     expect(l.pageWidth).toBe(595.28)

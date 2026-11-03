@@ -47,13 +47,14 @@ import { useSession } from '@/lib/session-context'
 import { formatFileSize } from '@/lib/pdf-utils'
 import {
   prepareImage,
+  releaseImage,
   imagesToPdf,
   validateImageBatch,
   DEFAULT_IMAGE_OPTIONS,
   ImageInputError,
   type ImageEntry,
   type ImagePdfOptions,
-} from '@/lib/images-to-pdf'
+} from '@/lib/images-runtime'
 
 function ImageRow({
   entry,
@@ -93,13 +94,20 @@ function ImageRow({
       >
         <GripVertical className="h-4 w-4" />
       </button>
-      <img
-        src={entry.thumbnail}
-        alt=""
-        width={48}
-        height={48}
-        className="h-[48px] w-[48px] shrink-0 rounded bg-muted object-contain"
-      />
+      {entry.thumbnail ? (
+        <img
+          src={entry.thumbnail}
+          alt=""
+          width={48}
+          height={48}
+          className="h-[48px] w-[48px] shrink-0 rounded bg-muted object-contain"
+        />
+      ) : (
+        <Images
+          aria-label={t('common.previewUnavailable')}
+          className="h-12 w-12 shrink-0"
+        />
+      )}
       <div className="min-w-0 flex-1">
         <p className="break-words text-sm font-medium [overflow-wrap:anywhere]">
           {entry.file.name}
@@ -160,9 +168,7 @@ export function ImagesToPdf() {
     mounted.current = true
     return () => {
       mounted.current = false
-      entriesRef.current.forEach((entry) =>
-        URL.revokeObjectURL(entry.thumbnail),
-      )
+      entriesRef.current.forEach((entry) => releaseImage(entry))
     }
   }, [])
   const replace = (next: ImageEntry[]) => {
@@ -194,10 +200,7 @@ export function ImagesToPdf() {
         staged.push(await prepareImage(files[n]))
         if (!mounted.current) return
         const all = [...entriesRef.current, ...staged]
-        validateImageBatch(
-          all.map((entry) => entry.file),
-          all.reduce((sum, entry) => sum + entry.width * entry.height, 0),
-        )
+        validateImageBatch(all.map((entry) => entry.file))
         await new Promise((resolve) => setTimeout(resolve, 0))
       }
       replace([...entriesRef.current, ...staged])
@@ -205,7 +208,7 @@ export function ImagesToPdf() {
     } catch (reason) {
       if (mounted.current) showError(reason, name)
     } finally {
-      staged.forEach((entry) => URL.revokeObjectURL(entry.thumbnail))
+      staged.forEach((entry) => releaseImage(entry))
       lock.current = false
       if (mounted.current) {
         setBusy(false)
@@ -218,7 +221,7 @@ export function ImagesToPdf() {
     const index = entriesRef.current.findIndex((entry) => entry.id === id)
     const entry = entriesRef.current[index]
     if (!entry) return
-    URL.revokeObjectURL(entry.thumbnail)
+    releaseImage(entry)
     const next = entriesRef.current.filter((entry) => entry.id !== id)
     replace(next)
     setError(null)
@@ -230,7 +233,7 @@ export function ImagesToPdf() {
   }
   const clear = () => {
     if (lock.current) return
-    entriesRef.current.forEach((entry) => URL.revokeObjectURL(entry.thumbnail))
+    entriesRef.current.forEach((entry) => releaseImage(entry))
     replace([])
     setError(null)
     upload.current?.querySelector<HTMLElement>('[role=button]')?.focus()

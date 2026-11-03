@@ -40,7 +40,9 @@ export function PdfPagePreview({
   const { t } = useTranslation()
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(false)
+  const [error, setError] = useState<
+    'previewUnavailable' | 'highResolutionPreview' | false
+  >(false)
   const [ready, setReady] = useState(false)
 
   useEffect(() => {
@@ -94,10 +96,15 @@ export function PdfPagePreview({
         setLoading(false)
         setReady(true)
         document.release()
-      } catch {
+      } catch (reason) {
         document.release()
         if (!cancelled) {
-          setError(true)
+          setError(
+            reason instanceof Error &&
+              reason.message === 'highResolutionPreview'
+              ? 'highResolutionPreview'
+              : 'previewUnavailable',
+          )
           setLoading(false)
         }
       }
@@ -113,7 +120,7 @@ export function PdfPagePreview({
   if (error)
     return (
       <p role="status" className="text-xs text-muted-foreground">
-        {t('common.previewUnavailable')}
+        {t('common.' + error)}
       </p>
     )
 

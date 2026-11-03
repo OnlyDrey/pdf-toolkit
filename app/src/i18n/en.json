@@ -59,7 +59,8 @@
     "selectedPages": "{{count}} pages selected",
     "pageLabel": "Page {{page}}",
     "skipToContent": "Skip to tool",
-    "previewPage": "PDF page {{page}} preview"
+    "previewPage": "PDF page {{page}} preview",
+    "highResolutionPreview": "Preview skipped to limit decoding memory. Full image resolution is preserved; editing and download are still available."
   },
   "theme": {
     "light": "Light",
@@ -176,7 +177,7 @@
       "upload": "Drag & drop images here, or click to browse",
       "formats": "JPEG, PNG, WebP, GIF and BMP · multiple files supported",
       "frameNote": "GIF and animated WebP use the first frame only. TIFF is not supported.",
-      "sizingNote": "Original size uses 96 DPI (96 pixels = 1 inch); margins add to the page. Small margins: 12 pt; normal: 24 pt. Fit preserves the whole image; Fill crops to the inner page area.",
+      "sizingNote": "Original size uses source DPI when available, otherwise 96 DPI. Margins add to the original page. Small margins: 12 pt; normal: 24 pt. Pixel resolution is preserved; Fill crops visually.",
       "selected": "Selected images",
       "count_one": "{{count}} image",
       "count_other": "{{count}} images",
@@ -188,7 +189,7 @@
       "size": "Page size",
       "a4": "A4",
       "letter": "Letter",
-      "original": "Original image dimensions (96 DPI)",
+      "original": "Original image dimensions",
       "orientation": "Orientation",
       "auto": "Auto",
       "portrait": "Portrait",
@@ -209,12 +210,14 @@
         "type": "Choose a supported image: JPEG, PNG, WebP, GIF or BMP. The file must contain image data.",
         "tiff": "TIFF is not supported. Export its first page as PNG or JPEG first; additional pages are not imported.",
         "corrupt": "This image could not be decoded. It may be damaged or use an unsupported encoding.",
-        "large": "Image limit: 20 MiB, 40 megapixels and 16,384 pixels per side. Resize the image and try again.",
-        "batch": "Batch limit: 100 images, 100 MiB of source files and 100 megapixels in total. Use a smaller batch.",
+        "batch": "Use at most 100 images per queue. Split larger collections into batches.",
         "empty": "Add at least one image.",
         "processing": "Could not create the PDF. Try fewer or smaller images, or another supported format.",
         "output": "The generated PDF exceeds the 100 MiB working-document limit. Use fewer or smaller images.",
-        "sessionChanged": "The working PDF changed during conversion. It has been kept; create the image PDF again when ready."
+        "sessionChanged": "The working PDF changed during conversion. It has been kept; create the image PDF again when ready.",
+        "resource": "This encoding needs more decoding memory than the browser budget allows. Try a non-interlaced RGB/RGBA PNG or JPEG, a smaller batch, or a device with more memory.",
+        "encoding": "This PNG encoding is not supported by the streaming path in this browser. Export a non-interlaced RGB/RGBA PNG or JPEG, or try a current browser. No automatic downscaling was applied.",
+        "pageSize": "Original Size would exceed the PDF page bound (200 inches / 14,400 points). Choose A4 or Letter, or correct the source DPI. Embedded image pixels are not reduced."
       }
     }
   },
