@@ -189,7 +189,7 @@ export function WorkspaceShell({
       <div className="min-w-0">
         <header className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3 md:px-7">
           {!desktop ? (
-            <div className="flex items-center gap-2">
+            <div className="flex min-w-0 max-w-full items-center gap-2">
               <Button
                 id="workspace-menu"
                 variant="ghost"

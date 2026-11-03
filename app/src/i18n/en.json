@@ -103,7 +103,7 @@
       "action": "Extract and download",
       "totalPages": "Total pages: {{count}}",
       "hint": "Enter page numbers and ranges, e.g. 1,3,5-8",
-      "previewHint": "Click pages to select. Up to 12 thumbnails shown."
+      "previewHint": "Select pages. Thumbnails load as you scroll."
     },
     "rotate": {
       "title": "Rotate Pages",
@@ -264,7 +264,7 @@
     "undo": "Undo",
     "redo": "Redo",
     "empty": "Open a PDF or create one with a tool. Your document stays available across tools.",
-    "pages": "{{count}} pages",
+    "pages": "{{count}} page",
     "saved": "Saved",
     "unsaved": "Unsaved changes",
     "preview": "Preview document",
@@ -307,6 +307,7 @@
       "delete": "remove pages",
       "reorder": "reorder pages"
     },
-    "selectInPanel": "Select pages in the document panel, or enter a page range below."
+    "selectInPanel": "Select pages in the document panel, or enter a page range below.",
+    "pages_other": "{{count}} pages"
   }
 }

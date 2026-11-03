@@ -65,7 +65,9 @@ export function Brand() {
       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
         <span aria-hidden="true" className="brand-mark h-5 w-5" />
       </span>
-      <span className="font-semibold tracking-tight">{t('app.title')}</span>
+      <span className="min-w-0 break-words font-semibold tracking-tight [overflow-wrap:anywhere]">
+        {t('app.title')}
+      </span>
     </div>
   )
 }

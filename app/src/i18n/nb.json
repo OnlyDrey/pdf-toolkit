@@ -103,7 +103,7 @@
       "action": "Hent ut og last ned",
       "totalPages": "Totalt antall sider: {{count}}",
       "hint": "Skriv inn sidenummer og områder, f.eks. 1,3,5-8",
-      "previewHint": "Klikk på sider for å velge. Opptil 12 miniatyrbilder vises."
+      "previewHint": "Velg sider. Miniatyrbilder lastes inn mens du blar."
     },
     "rotate": {
       "title": "Roter sider",
@@ -264,7 +264,7 @@
     "undo": "Angre",
     "redo": "Gjør om",
     "empty": "Åpne en PDF eller opprett en med et verktøy. Dokumentet er tilgjengelig på tvers av verktøy.",
-    "pages": "{{count}} sider",
+    "pages": "{{count}} side",
     "saved": "Lagret",
     "unsaved": "Ulagrede endringer",
     "preview": "Forhåndsvis dokument",
@@ -307,6 +307,7 @@
       "delete": "fjern sider",
       "reorder": "endre siderekkefølge"
     },
-    "selectInPanel": "Velg sider i dokumentpanelet, eller skriv inn et sideområde nedenfor."
+    "selectInPanel": "Velg sider i dokumentpanelet, eller skriv inn et sideområde nedenfor.",
+    "pages_other": "{{count}} sider"
   }
 }

@@ -159,7 +159,7 @@ export function FileDropZone({
           className="flex w-full items-center gap-2 rounded-b-lg border-2 border-t border-dashed border-primary/30 bg-primary/5 px-4 py-2.5 text-left transition-colors hover:bg-primary/10 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
         >
           <FileText className="h-4 w-4 shrink-0 text-primary" />
-          <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
+          <span className="min-w-0 flex-1 break-words text-xs text-muted-foreground [overflow-wrap:anywhere]">
             {t('session.useFile')}:{' '}
             <span className="font-medium text-foreground">{sessionName}</span>
           </span>
