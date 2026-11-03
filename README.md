@@ -4,7 +4,7 @@ Simple PDF tools in English and Norwegian Bokmål, processed entirely in your br
 
 ## Features
 
-Merge, extract, rotate, resize, crop, structurally compress and inspect PDF version headers. Apply changes to a shared working file, switch tools and download when finished. Light, dark and system themes are included.
+Convert images to PDF, merge, extract, rotate, resize, crop, structurally compress and inspect PDF version headers. Images to PDF supports JPEG, PNG, WebP, GIF and BMP with page sizing, thumbnails and reordering. Apply changes to a shared working file, switch tools and download when finished. Light, dark and system themes are included.
 
 ## Privacy-first architecture
 
@@ -40,6 +40,7 @@ For a local container build, run `docker compose -f app/compose.local.yaml up --
 ## Documentation
 
 - [Cross-platform local builds and release packaging](docs/LOCAL_RELEASE.md)
+- [Images to PDF: formats, sizing and limits](docs/DEPLOYMENT.md#images-to-pdf)
 - [Deployment and manual release guide](docs/DEPLOYMENT.md)
 - [Dependency maintenance and CI cost](docs/DEPENDENCIES.md)
 - [Accessibility, VersionFix and branding](docs/ACCESSIBILITY.md)

@@ -171,6 +171,24 @@ Malformed, empty, unsupported and encrypted PDFs report errors. Decrypt a copy l
 
 Crop changes the visible crop box in unrotated PDF coordinates; hidden content stays in the file. **Crop is not redaction.** Version Fix changes only the header's three version characters, validates the PDF and allows higher or lower header values while preserving catalog overrides and every other byte. It does not convert features or establish reader compatibility or PDF/A conformance.
 
+## Images to PDF
+
+Add JPEG/JPG, PNG, WebP, GIF or BMP files using the image picker or drag-and-drop. The queue shows thumbnails, filenames, oriented pixel dimensions, sizes and count. Drag the handle to reorder, or focus it and use Space, arrow keys and Space again; Escape cancels sorting. Remove one image or clear the queue. Existing PDF tools still use PDF-only upload controls.
+
+Each image creates one page, in queue order. Defaults are **A4**, **Auto** orientation, **Fit / contain**, and **Normal** margins. Letter and Original image dimensions are also available. Auto chooses portrait/landscape per image; forced orientations change the page orientation without stretching the image. Fit centers the whole image; Fill centers and clips it to the area inside the margins. Margins are None (0 pt), Small (12 pt), or Normal (24 pt).
+
+Original dimensions assume **96 DPI**, regardless of camera/display DPI metadata: 960 × 480 pixels becomes a 720 × 360 point page with no margins (72 PDF points = 1 inch). Original-size margins add to the page; normal margins make this example 768 × 408 points. For A4/Letter they consume space inside the fixed page size.
+
+JPEG EXIF rotations and reflections (orientations 1–8) are applied using PDF transforms while embedding the original JPEG bytes without recompression. PNG retains transparency and avoids a canvas re-encode when no orientation correction is needed. WebP, GIF and BMP use the browser decoder and lossless PNG embedding; alpha is retained where the source/decoder supports it. These operations do not improve a source image's resolution or restore lost JPEG detail. Browser-supported encodings and color handling can vary; advanced CMYK/HDR/wide-gamut cases need representative reader checks.
+
+**GIF and animated WebP use only the first frame**, with a visible notice before conversion. They do not produce animation or one page per animation frame. **TIFF/TIF is not supported**, including multi-page TIFF: the error asks for the first page to be exported as PNG/JPEG; additional pages are never imported silently. Standard native BMP is supported; browser-unsupported encodings report an error. No decoder dependency or WASM was added. The optional MIT UTIF 3.1.0 decoder was evaluated (63,999 unpacked bytes plus `pako ^1.0.5`); TIFF remains deferred to avoid adding a separate codec/dependency and memory-validation path for this optional format. Unpacked size is not a browser transfer-size claim.
+
+Limits: **20 MiB per file, 40 megapixels per image, 16,384 pixels per side; 100 images, 100 MiB source files and 100 megapixels per batch**. Output must fit the existing 100 MiB PDF session limit. Invalid batches retain the previous queue; conversion errors retain both the images and working PDF. Encoded file size does not predict decoded memory: one 40-megapixel bitmap alone can use roughly 160 MB. Use smaller batches on memory-constrained devices. Decoding is sequential, canvases/bitmaps are released, thumbnail URLs are revoked on removal/clear/unmount and the loop yields between images. PDF embedding/serialization can still briefly pause the UI; browser/OS out-of-memory termination cannot always be caught.
+
+Create PDF places `images.pdf` in the shared working session. Replacing an existing PDF requires a Cancel-first confirmation; download that document from the toolbar first if needed. A concurrent change to the working document is preserved instead of overwritten. Continue with Rotate, Crop, Extract, Compress or Merge, and use the existing Download / Save & Download toolbar. There is no separate image-tool downloader.
+
+Everything stays in browser memory: no uploads, telemetry, remote conversion APIs or persistent image storage. Refreshing loses the queue and working PDF. Embedded JPEG bytes retain their metadata, and Fill is visual clipping rather than redaction; full embedded image data can remain recoverable. Remove sensitive metadata/content from a source locally before sharing when necessary.
+
 ## Builds without GitHub Actions
 
 Use the [cross-platform local release guide](LOCAL_RELEASE.md) for Python 3.11+, PowerShell 5.1/Bash commands, frontend ZIPs, optional Docker/OCI archives, offline version allocation and manual deployment/rollback. No GitHub authentication is needed for local builds or packaging. Local production confirmation does not publish anything.

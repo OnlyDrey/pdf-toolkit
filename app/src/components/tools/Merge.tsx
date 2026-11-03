@@ -101,7 +101,7 @@ function SortableItem({
 
 export function Merge() {
   const { t } = useTranslation()
-  const { setSession } = useSession()
+  const { session, setSession } = useSession()
   const [entries, setEntries] = useState<PdfEntry[]>([])
   const [processing, setProcessing] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -181,7 +181,22 @@ export function Merge() {
         </CardHeader>
         <ProcessingStatus busy={processing} />
         <CardContent aria-busy={processing} className="space-y-6">
-          <FileDropZone disabled={processing} multiple onFiles={handleFiles} />
+          <FileDropZone
+            disabled={processing}
+            multiple
+            onFiles={handleFiles}
+            sessionName={session?.name}
+            onUseSession={
+              session
+                ? () =>
+                    handleFiles([
+                      new File([new Uint8Array(session.bytes)], session.name, {
+                        type: 'application/pdf',
+                      }),
+                    ])
+                : undefined
+            }
+          />
           {entries.length > 0 && (
             <>
               <Separator />

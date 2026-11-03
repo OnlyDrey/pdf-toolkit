@@ -120,6 +120,27 @@ test('JPEG keeps original data, uses centered A4 and continues through the share
     (await PDFDocument.load(await download(page))).getPage(0).getRotation()
       .angle,
   ).toBe(90)
+  await page.locator('#tool-tab-merge').click()
+  const merge = page.locator('main > div:not(.hidden)')
+  await merge
+    .getByRole('button', { name: /Session: images_rotated.pdf/ })
+    .click()
+  const extra = await PDFDocument.create()
+  extra.addPage([100, 100])
+  await merge.locator('input[type=file]').setInputFiles({
+    name: 'extra.pdf',
+    mimeType: 'application/pdf',
+    buffer: Buffer.from(await extra.save()),
+  })
+  await merge
+    .getByRole('button', { name: 'Merge into working file', exact: true })
+    .click()
+  await expect(
+    merge.getByText('Applied - working file updated', { exact: true }),
+  ).toBeVisible()
+  const combined = await PDFDocument.load(await download(page))
+  expect(combined.getPageCount()).toBe(2)
+  expect(combined.getPage(0).getRotation().angle).toBe(90)
   expect(sent).toEqual([])
 })
 test('PNG/JPEG/WebP reorder and removal preserve page order, transparency and resource cleanup', async ({
