@@ -59,3 +59,28 @@ export function cropPages(
     page.setCropBox(box.x + margins.left, box.y + margins.bottom, width, height)
   }
 }
+
+/** Reinsert existing page objects so catalog metadata/resources survive reorder. */
+export function reorderPages(doc: PDFDocument, order: number[]) {
+  const pages = doc.getPages()
+  if (
+    order.length !== pages.length ||
+    new Set(order).size !== pages.length ||
+    order.some((i) => !Number.isInteger(i) || i < 0 || i >= pages.length)
+  )
+    throw new Error('Invalid page order')
+  for (let n = pages.length - 1; n >= 0; n--) doc.removePage(n)
+  for (const index of order) doc.addPage(pages[index])
+}
+export function removePages(doc: PDFDocument, indices: number[]) {
+  const selected = Array.from(new Set(indices))
+  if (
+    !selected.length ||
+    selected.length >= doc.getPageCount() ||
+    selected.some(
+      (i) => !Number.isInteger(i) || i < 0 || i >= doc.getPageCount(),
+    )
+  )
+    throw new Error('Invalid page removal')
+  selected.sort((a, b) => b - a).forEach((index) => doc.removePage(index))
+}

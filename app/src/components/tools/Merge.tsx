@@ -101,7 +101,13 @@ function SortableItem({
 
 export function Merge() {
   const { t } = useTranslation()
-  const { session, setSession } = useSession()
+  const {
+    session,
+    busy: documentBusy,
+    beginOperation,
+    commitOperation,
+    endOperation,
+  } = useSession()
   const [entries, setEntries] = useState<PdfEntry[]>([])
   const [processing, setProcessing] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -139,6 +145,8 @@ export function Merge() {
   }
   const handleMerge = async () => {
     if (entries.length < 2) return
+    const token = beginOperation('merge')
+    if (!token) return
     setProcessing(true)
     setError(null)
     setDone(false)
@@ -151,7 +159,13 @@ export function Merge() {
         const pages = await merged.copyPages(doc, doc.getPageIndices())
         pages.forEach((p) => merged.addPage(p))
       }
-      setSession(await merged.save(), 'merged.pdf')
+      if (
+        !(await commitOperation(await merged.save(), 'merged.pdf', token, {
+          replace:
+            !!session && !entries.some((entry) => entry.file === session.file),
+        }))
+      )
+        return
       setDone(true)
     } catch (e) {
       setError(
@@ -160,6 +174,7 @@ export function Merge() {
           : t('errors.processing'),
       )
     } finally {
+      endOperation(token)
       setProcessing(false)
     }
   }
@@ -182,19 +197,12 @@ export function Merge() {
         <ProcessingStatus busy={processing} />
         <CardContent aria-busy={processing} className="space-y-6">
           <FileDropZone
-            disabled={processing}
+            disabled={processing || documentBusy}
             multiple
             onFiles={handleFiles}
             sessionName={session?.name}
             onUseSession={
-              session
-                ? () =>
-                    handleFiles([
-                      new File([new Uint8Array(session.bytes)], session.name, {
-                        type: 'application/pdf',
-                      }),
-                    ])
-                : undefined
+              session ? () => handleFiles([session.file]) : undefined
             }
           />
           {entries.length > 0 && (
@@ -280,7 +288,7 @@ export function Merge() {
           <div className="flex flex-wrap gap-2">
             <Button
               onClick={handleMerge}
-              disabled={entries.length < 2 || processing}
+              disabled={entries.length < 2 || processing || documentBusy}
               className="flex-1"
             >
               {processing ? t('common.processing') : t('tools.merge.action')}

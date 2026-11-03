@@ -1,25 +1,18 @@
 import { useTranslation } from 'react-i18next'
 import { ActiveToolContext } from '@/lib/active-tool-context'
-import { useState, useCallback } from 'react'
+import { useState } from 'react'
 import { ThemeProvider } from '@/components/layout/ThemeProvider'
 import { WorkspaceShell } from '@/components/layout/WorkspaceShell'
-import { SessionBar } from '@/components/layout/SessionBar'
-import { SessionContext, type SessionFile } from '@/lib/session-context'
+import { DocumentPanel } from '@/components/layout/DocumentPanel'
+import { SessionProvider } from '@/components/layout/SessionProvider'
 import { TOOLS, type ToolId } from '@/lib/tools'
 export default function App() {
   const { t } = useTranslation()
-  const [active, setActive] = useState<ToolId>('merge'),
-    [session, setSessionState] = useState<SessionFile | null>(null)
-  const setSession = useCallback(
-    (bytes: Uint8Array, name: string) => setSessionState({ bytes, name }),
-    [],
-  )
-  const clearSession = useCallback(() => setSessionState(null), [])
+  const [active, setActive] = useState<ToolId>('merge')
   return (
-    <SessionContext.Provider value={{ session, setSession, clearSession }}>
-      <ThemeProvider>
+    <ThemeProvider>
+      <SessionProvider>
         <WorkspaceShell active={active} onSelect={setActive}>
-          <SessionBar />
           <main
             id="main-content"
             tabIndex={-1}
@@ -33,6 +26,7 @@ export default function App() {
                 {t('tools.' + active + '.description')}
               </p>
             </header>
+            <DocumentPanel />
             {TOOLS.map(({ id, component: Tool }) => (
               <div
                 key={id}
@@ -49,7 +43,7 @@ export default function App() {
             ))}
           </main>
         </WorkspaceShell>
-      </ThemeProvider>
-    </SessionContext.Provider>
+      </SessionProvider>
+    </ThemeProvider>
   )
 }

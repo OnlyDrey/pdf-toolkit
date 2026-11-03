@@ -147,7 +147,13 @@ function ImageRow({
 }
 export function ImagesToPdf() {
   const { t } = useTranslation()
-  const { session, setSession } = useSession()
+  const {
+    session,
+    busy: documentBusy,
+    beginOperation,
+    commitOperation,
+    endOperation,
+  } = useSession()
   const sessionRef = useRef(session)
   sessionRef.current = session
   const [entries, setEntries] = useState<ImageEntry[]>([])
@@ -262,6 +268,8 @@ export function ImagesToPdf() {
   }
   const convert = async () => {
     if (lock.current || !entriesRef.current.length) return
+    const token = beginOperation('images')
+    if (!token) return
     const previousSession = sessionRef.current
     lock.current = true
     setBusy(true)
@@ -285,12 +293,13 @@ export function ImagesToPdf() {
           setError({ code: 'sessionChanged' })
           return
         }
-        setSession(bytes, 'images.pdf')
+        if (!(await commitOperation(bytes, 'images.pdf', token))) return
         setDone(true)
       }
     } catch (reason) {
       if (mounted.current) showError(reason)
     } finally {
+      endOperation(token)
       lock.current = false
       if (mounted.current) {
         setBusy(false)
@@ -304,7 +313,7 @@ export function ImagesToPdf() {
       <Label htmlFor={'images-' + key}>{t('tools.images.' + key)}</Label>
       <Select
         value={options[key]}
-        disabled={busy}
+        disabled={busy || documentBusy}
         onValueChange={(value) => {
           setOptions((previous) => ({ ...previous, [key]: value }))
           setDone(false)
@@ -349,7 +358,7 @@ export function ImagesToPdf() {
             <FileDropZone
               kind="image"
               multiple
-              disabled={busy}
+              disabled={busy || documentBusy}
               onFiles={(files) => void addFiles(files)}
             />
           </div>
@@ -368,7 +377,7 @@ export function ImagesToPdf() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  disabled={busy}
+                  disabled={busy || documentBusy}
                   onClick={clear}
                 >
                   {t('tools.images.clear')}
@@ -412,7 +421,7 @@ export function ImagesToPdf() {
                       <ImageRow
                         key={entry.id}
                         entry={entry}
-                        disabled={busy}
+                        disabled={busy || documentBusy}
                         remove={() => remove(entry.id)}
                         preview={() =>
                           setView(
@@ -458,7 +467,7 @@ export function ImagesToPdf() {
           <Button
             ref={convertButton}
             className="w-full"
-            disabled={busy || !entries.length}
+            disabled={busy || documentBusy || !entries.length}
             onClick={() => {
               if (lock.current) return
               if (session) setConfirming(true)

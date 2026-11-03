@@ -3,13 +3,7 @@ import { useActiveTool } from '@/lib/active-tool-context'
 import { loadPdf, PdfInputError } from '@/lib/pdf-document'
 import { useState, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-  Maximize2,
-  AlertCircle,
-  CheckCircle2,
-  ArrowRight,
-  Download,
-} from 'lucide-react'
+import { Maximize2, AlertCircle, CheckCircle2, ArrowRight } from 'lucide-react'
 import { resizePages } from '@/lib/pdf-operations'
 import {
   Card,
@@ -33,11 +27,7 @@ import {
 } from '@/components/ui/select'
 import { FileDropZone } from './FileDropZone'
 import { PdfPagePreview, type PageDimensions } from './PdfPagePreview'
-import {
-  readFileAsArrayBuffer,
-  formatFileSize,
-  downloadBlob,
-} from '@/lib/pdf-utils'
+import { readFileAsArrayBuffer, formatFileSize } from '@/lib/pdf-utils'
 import {
   paperSizes,
   paperSizesByCategory,
@@ -66,7 +56,13 @@ export function Resize() {
   const { t } = useTranslation()
   const active = useActiveTool()
   const lastOutput = useRef<Uint8Array | null>(null)
-  const { session, setSession } = useSession()
+  const {
+    session,
+    busy: documentBusy,
+    beginOperation,
+    commitOperation,
+    endOperation,
+  } = useSession()
   const [file, setFile] = useState<File | null>(null)
   const [ffs, setFfs] = useState(false)
   const [sizeId, setSizeId] = useState('a4')
@@ -76,30 +72,35 @@ export function Resize() {
   const [error, setError] = useState<string | null>(null)
   const [done, setDone] = useState(false)
   const [dims, setDims] = useState<PageDimensions | null>(null)
-  const [outBytes, setOutBytes] = useState<Uint8Array | null>(null)
-  const [outName, setOutName] = useState('')
   const sz = paperSizes.find((s) => s.id === sizeId) ?? paperSizes[3]
 
   useEffect(() => {
-    if (!active || (session && session.bytes === lastOutput.current)) return
+    if (!active) {
+      if (ffs) {
+        setFile(null)
+        lastOutput.current = null
+      }
+      return
+    }
+    if (
+      session &&
+      session.bytes === lastOutput.current &&
+      file === session.file
+    )
+      return
     if (session && (!file || ffs)) {
-      setFile(
-        new File([new Uint8Array(session.bytes)], session.name, {
-          type: 'application/pdf',
-        }),
-      )
+      setFile(session.file)
       setFfs(true)
       setDims(null)
       setDone(false)
       setError(null)
-      setOutBytes(null)
-      setOutName('')
     } else if (!session && ffs) {
+      lastOutput.current = null
       setFile(null)
       setFfs(false)
       setDims(null)
     }
-  }, [session, active])
+  }, [session?.revision, active])
 
   const handleFile = (files: File[]) => {
     setFile(files[0])
@@ -107,29 +108,31 @@ export function Resize() {
     setDims(null)
     setDone(false)
     setError(null)
-    setOutBytes(null)
-    setOutName('')
   }
 
   const handleProcess = async () => {
     if (!file) return
+    const token = beginOperation('resize')
+    if (!token) return
     setProcessing(true)
     setError(null)
     setDone(false)
     try {
-      const doc = await loadPdf(await readFileAsArrayBuffer(file))
+      const doc = await loadPdf(
+        ffs && session ? session.bytes : await readFileAsArrayBuffer(file),
+      )
       const { width: nW, height: nH } = getPt(sz, orient)
       resizePages(doc, nW, nH, scale)
       const pdfBytes = await doc.save()
       const name = `${file.name.replace(/\.pdf$/i, '')}_${sz.id}.pdf`
+      const committed = await commitOperation(pdfBytes, name, token, {
+        replace: !ffs,
+      })
+      if (!committed) return
       lastOutput.current = pdfBytes
-      setSession(pdfBytes, name)
-      setFile(
-        new File([new Uint8Array(pdfBytes)], name, { type: 'application/pdf' }),
-      )
+      setFile(committed.file)
       setFfs(true)
-      setOutBytes(pdfBytes)
-      setOutName(name)
+
       setDone(true)
     } catch (e) {
       setError(
@@ -138,6 +141,7 @@ export function Resize() {
           : t('errors.processing'),
       )
     } finally {
+      endOperation(token)
       setProcessing(false)
     }
   }
@@ -146,14 +150,9 @@ export function Resize() {
     setDone(false)
     setError(null)
     setDims(null)
-    setOutBytes(null)
-    setOutName('')
+
     if (session) {
-      setFile(
-        new File([new Uint8Array(session.bytes)], session.name, {
-          type: 'application/pdf',
-        }),
-      )
+      setFile(session.file)
       setFfs(true)
     } else {
       setFile(null)
@@ -179,7 +178,7 @@ export function Resize() {
         <ProcessingStatus busy={processing} />
         <CardContent aria-busy={processing} className="space-y-6">
           <FileDropZone
-            disabled={processing}
+            disabled={processing || documentBusy}
             onFiles={handleFile}
             hasFile={!!file}
             fileLabel={
@@ -187,14 +186,7 @@ export function Resize() {
             }
             sessionName={!file && session ? session.name : undefined}
             onUseSession={
-              !file && session
-                ? () =>
-                    handleFile([
-                      new File([new Uint8Array(session.bytes)], session.name, {
-                        type: 'application/pdf',
-                      }),
-                    ])
-                : undefined
+              !file && session ? () => handleFile([session.file]) : undefined
             }
           />
           {file && (
@@ -245,7 +237,7 @@ export function Resize() {
                     {t('tools.resize.paperSize')}
                   </Label>
                   <Select
-                    disabled={processing}
+                    disabled={processing || documentBusy}
                     value={sizeId}
                     onValueChange={setSizeId}
                   >
@@ -273,7 +265,7 @@ export function Resize() {
                     {t('tools.resize.orientation')}
                   </Label>
                   <Select
-                    disabled={processing}
+                    disabled={processing || documentBusy}
                     value={orient}
                     onValueChange={(v) => setOrient(v as Orientation)}
                   >
@@ -330,30 +322,17 @@ export function Resize() {
           <div className="flex flex-wrap gap-2">
             <Button
               onClick={handleProcess}
-              disabled={!file || processing}
+              disabled={!file || processing || documentBusy}
               className="flex-1"
             >
               {processing ? t('common.processing') : t('common.apply')}
             </Button>
-            {done && outBytes && (
+            {file && !done && (
               <Button
                 variant="outline"
-                className="gap-1.5"
-                onClick={() =>
-                  downloadBlob(
-                    new Blob([new Uint8Array(outBytes)], {
-                      type: 'application/pdf',
-                    }),
-                    outName,
-                  )
-                }
+                disabled={processing || documentBusy}
+                onClick={handleReset}
               >
-                <Download className="h-4 w-4" />
-                {t('common.downloadResult')}
-              </Button>
-            )}
-            {file && !done && (
-              <Button variant="outline" onClick={handleReset}>
                 {t('common.reset')}
               </Button>
             )}

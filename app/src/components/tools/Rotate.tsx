@@ -3,7 +3,7 @@ import { useActiveTool } from '@/lib/active-tool-context'
 import { loadPdf, PdfInputError } from '@/lib/pdf-document'
 import { useState, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { RotateCw, AlertCircle, CheckCircle2, Download } from 'lucide-react'
+import { RotateCw, AlertCircle, CheckCircle2 } from 'lucide-react'
 import { rotatePages } from '@/lib/pdf-operations'
 import {
   Card,
@@ -28,7 +28,6 @@ import { PdfPagePreview } from './PdfPagePreview'
 import {
   readFileAsArrayBuffer,
   formatFileSize,
-  downloadBlob,
   parsePageRange,
 } from '@/lib/pdf-utils'
 import { useSession } from '@/lib/session-context'
@@ -40,7 +39,13 @@ export function Rotate() {
   const { t } = useTranslation()
   const active = useActiveTool()
   const lastOutput = useRef<Uint8Array | null>(null)
-  const { session, setSession } = useSession()
+  const {
+    session,
+    busy: documentBusy,
+    beginOperation,
+    commitOperation,
+    endOperation,
+  } = useSession()
   const [file, setFile] = useState<File | null>(null)
   const [ffs, setFfs] = useState(false)
   const [angle, setAngle] = useState<RotationAngle>('90')
@@ -49,44 +54,51 @@ export function Rotate() {
   const [processing, setProcessing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [done, setDone] = useState(false)
-  const [outBytes, setOutBytes] = useState<Uint8Array | null>(null)
-  const [outName, setOutName] = useState('')
 
   useEffect(() => {
-    if (!active || (session && session.bytes === lastOutput.current)) return
+    if (!active) {
+      if (ffs) {
+        setFile(null)
+        lastOutput.current = null
+      }
+      return
+    }
+    if (
+      session &&
+      session.bytes === lastOutput.current &&
+      file === session.file
+    )
+      return
     if (session && (!file || ffs)) {
-      setFile(
-        new File([new Uint8Array(session.bytes)], session.name, {
-          type: 'application/pdf',
-        }),
-      )
+      setFile(session.file)
       setFfs(true)
       setDone(false)
       setError(null)
-      setOutBytes(null)
-      setOutName('')
     } else if (!session && ffs) {
+      lastOutput.current = null
       setFile(null)
       setFfs(false)
     }
-  }, [session, active])
+  }, [session?.revision, active])
 
   const handleFile = (files: File[]) => {
     setFile(files[0])
     setFfs(false)
     setDone(false)
     setError(null)
-    setOutBytes(null)
-    setOutName('')
   }
 
   const handleProcess = async () => {
     if (!file) return
+    const token = beginOperation('rotate')
+    if (!token) return
     setProcessing(true)
     setError(null)
     setDone(false)
     try {
-      const doc = await loadPdf(await readFileAsArrayBuffer(file))
+      const doc = await loadPdf(
+        ffs && session ? session.bytes : await readFileAsArrayBuffer(file),
+      )
       const pages = doc.getPages()
       const indices =
         pageSel === 'all'
@@ -96,14 +108,14 @@ export function Rotate() {
       rotatePages(doc, indices, rot)
       const pdfBytes = await doc.save()
       const name = `${file.name.replace(/\.pdf$/i, '')}_rotated.pdf`
+      const committed = await commitOperation(pdfBytes, name, token, {
+        replace: !ffs,
+      })
+      if (!committed) return
       lastOutput.current = pdfBytes
-      setSession(pdfBytes, name)
-      setFile(
-        new File([new Uint8Array(pdfBytes)], name, { type: 'application/pdf' }),
-      )
+      setFile(committed.file)
       setFfs(true)
-      setOutBytes(pdfBytes)
-      setOutName(name)
+
       setDone(true)
     } catch (e) {
       setError(
@@ -112,6 +124,7 @@ export function Rotate() {
           : t('errors.processing'),
       )
     } finally {
+      endOperation(token)
       setProcessing(false)
     }
   }
@@ -120,14 +133,9 @@ export function Rotate() {
     setDone(false)
     setError(null)
     setRangeInput('')
-    setOutBytes(null)
-    setOutName('')
+
     if (session) {
-      setFile(
-        new File([new Uint8Array(session.bytes)], session.name, {
-          type: 'application/pdf',
-        }),
-      )
+      setFile(session.file)
       setFfs(true)
     } else {
       setFile(null)
@@ -148,7 +156,7 @@ export function Rotate() {
         <ProcessingStatus busy={processing} />
         <CardContent aria-busy={processing} className="space-y-6">
           <FileDropZone
-            disabled={processing}
+            disabled={processing || documentBusy}
             onFiles={handleFile}
             hasFile={!!file}
             fileLabel={
@@ -156,14 +164,7 @@ export function Rotate() {
             }
             sessionName={!file && session ? session.name : undefined}
             onUseSession={
-              !file && session
-                ? () =>
-                    handleFile([
-                      new File([new Uint8Array(session.bytes)], session.name, {
-                        type: 'application/pdf',
-                      }),
-                    ])
-                : undefined
+              !file && session ? () => handleFile([session.file]) : undefined
             }
           />
           {file && (
@@ -189,7 +190,7 @@ export function Rotate() {
                     {t('tools.rotate.angle')}
                   </Label>
                   <Select
-                    disabled={processing}
+                    disabled={processing || documentBusy}
                     value={angle}
                     onValueChange={(v) => setAngle(v as RotationAngle)}
                   >
@@ -214,7 +215,7 @@ export function Rotate() {
                     {t('tools.rotate.applyTo')}
                   </Label>
                   <Select
-                    disabled={processing}
+                    disabled={processing || documentBusy}
                     value={pageSel}
                     onValueChange={(v) => setPageSel(v as PageSelection)}
                   >
@@ -268,30 +269,17 @@ export function Rotate() {
           <div className="flex flex-wrap gap-2">
             <Button
               onClick={handleProcess}
-              disabled={!file || processing}
+              disabled={!file || processing || documentBusy}
               className="flex-1"
             >
               {processing ? t('common.processing') : t('common.apply')}
             </Button>
-            {done && outBytes && (
+            {file && !done && (
               <Button
                 variant="outline"
-                className="gap-1.5"
-                onClick={() =>
-                  downloadBlob(
-                    new Blob([new Uint8Array(outBytes)], {
-                      type: 'application/pdf',
-                    }),
-                    outName,
-                  )
-                }
+                disabled={processing || documentBusy}
+                onClick={handleReset}
               >
-                <Download className="h-4 w-4" />
-                {t('common.downloadResult')}
-              </Button>
-            )}
-            {file && !done && (
-              <Button variant="outline" onClick={handleReset}>
                 {t('common.reset')}
               </Button>
             )}

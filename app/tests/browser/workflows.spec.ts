@@ -70,7 +70,7 @@ test('merge, session switch, extract, rotate, resize, crop and download', async 
   await navigate(page, 'extract')
   await expect(visibleTool(page).getByText('Total pages: 3')).toBeVisible()
   await expect(
-    visibleTool(page).locator('[data-pdf-preview]').first(),
+    page.locator('.document-panel [data-pdf-preview]').first(),
   ).toBeVisible()
   await visibleTool(page).getByRole('textbox').fill('1,3')
   await apply(page)
@@ -93,7 +93,9 @@ test('merge, session switch, extract, rotate, resize, crop and download', async 
   const download = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Save & Download' }).click()
   await download
-  await expect(page.getByText('Working on:', { exact: false })).toHaveCount(0)
+  await expect(
+    page.locator('.document-panel [data-document-name]'),
+  ).toHaveCount(1)
 })
 test('invalid and encrypted PDFs give useful errors', async ({ page }) => {
   await navigate(page, 'compress')
@@ -188,7 +190,8 @@ test('repeated operations use the current result and invalid ranges cannot use s
   expect((await result(page)).getPage(0).getRotation().angle).toBe(180)
   await navigate(page, 'extract')
   await expect(visibleTool(page).getByText('Total pages: 2')).toBeVisible()
-  await visibleTool(page)
+  await page
+    .locator('.document-panel')
     .getByRole('button', { name: 'Page 1', exact: true })
     .click()
   await visibleTool(page).getByRole('textbox').fill('1,invalid')
@@ -296,10 +299,12 @@ test('keyboard tabs, focus, document language and discard confirmation are predi
   await expect(discard).toBeFocused()
   await discard.click()
   await dialog.getByRole('button', { name: 'Discard', exact: true }).click()
-  await expect(page.getByText('Working on:', { exact: false })).toHaveCount(0)
   await expect(
-    (await page.viewportSize())!.width < 768
-      ? page.locator('#tool-panel-rotate')
-      : page.locator('#tool-tab-rotate'),
+    page.locator('.document-panel [data-document-name]'),
+  ).toHaveCount(0)
+  await expect(
+    page
+      .locator('.document-panel')
+      .getByRole('button', { name: 'Open PDF', exact: true }),
   ).toBeFocused()
 })

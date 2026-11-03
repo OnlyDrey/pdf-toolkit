@@ -3,7 +3,7 @@ import { useActiveTool } from '@/lib/active-tool-context'
 import { loadPdf, PdfInputError } from '@/lib/pdf-document'
 import { useState, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Scissors, AlertCircle, CheckCircle2, Download } from 'lucide-react'
+import { Scissors, AlertCircle, CheckCircle2 } from 'lucide-react'
 import { PDFDocument } from 'pdf-lib'
 import {
   Card,
@@ -22,7 +22,6 @@ import { PdfPageGrid } from './PdfPageGrid'
 import {
   readFileAsArrayBuffer,
   formatFileSize,
-  downloadBlob,
   parsePageRange,
 } from '@/lib/pdf-utils'
 import { useSession } from '@/lib/session-context'
@@ -31,7 +30,15 @@ export function Extract() {
   const { t } = useTranslation()
   const active = useActiveTool()
   const lastOutput = useRef<Uint8Array | null>(null)
-  const { session, setSession } = useSession()
+  const {
+    session,
+    busy: documentBusy,
+    beginOperation,
+    commitOperation,
+    endOperation,
+    selectedIds,
+    selectPages,
+  } = useSession()
   const [file, setFile] = useState<File | null>(null)
   const [ffs, setFfs] = useState(false)
   const [totalPages, setTotalPages] = useState<number | null>(null)
@@ -40,10 +47,8 @@ export function Extract() {
   const [processing, setProcessing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [done, setDone] = useState(false)
-  const [outBytes, setOutBytes] = useState<Uint8Array | null>(null)
-  const [outName, setOutName] = useState('')
   const loadGeneration = useRef(0)
-  const bufRef = useRef<ArrayBuffer | null>(null)
+  const bufRef = useRef<ArrayBuffer | Uint8Array | null>(null)
 
   const loadFile = async (f: File, fromSession = false) => {
     const generation = ++loadGeneration.current
@@ -54,11 +59,11 @@ export function Extract() {
     setError(null)
     setSelected(new Set())
     setInputVal('')
-    setOutBytes(null)
-    setOutName('')
+
     bufRef.current = null
     try {
-      const buf = await readFileAsArrayBuffer(f)
+      const buf =
+        fromSession && session ? session.bytes : await readFileAsArrayBuffer(f)
       const doc = await loadPdf(buf)
       if (generation !== loadGeneration.current) return
       bufRef.current = buf
@@ -75,21 +80,40 @@ export function Extract() {
   }
 
   useEffect(() => {
-    if (!active || (session && session.bytes === lastOutput.current)) return
+    if (!active) {
+      if (ffs) {
+        setFile(null)
+        lastOutput.current = null
+        bufRef.current = null
+        loadGeneration.current++
+      }
+      return
+    }
+    if (
+      session &&
+      session.bytes === lastOutput.current &&
+      file === session.file
+    )
+      return
     if (session && (!file || ffs)) {
-      loadFile(
-        new File([new Uint8Array(session.bytes)], session.name, {
-          type: 'application/pdf',
-        }),
-        true,
-      )
+      loadFile(session.file, true)
     } else if (!session && ffs) {
+      lastOutput.current = null
       setFile(null)
       setFfs(false)
       setTotalPages(null)
       bufRef.current = null
     }
-  }, [session, active])
+  }, [session?.revision, active])
+
+  useEffect(() => {
+    if (!ffs || !session || file !== session.file) return
+    const indices = session.pageIds.flatMap((id, i) =>
+      selectedIds.includes(id) ? [i] : [],
+    )
+    setSelected(new Set(indices))
+    setInputVal(indices.map((i) => i + 1).join(','))
+  }, [selectedIds, session?.revision, ffs, file])
 
   const handleFile = (files: File[]) => loadFile(files[0], false)
 
@@ -97,12 +121,15 @@ export function Extract() {
     setInputVal(val)
     if (totalPages !== null && val.trim()) {
       try {
-        setSelected(new Set(parsePageRange(val, totalPages)))
+        const indices = parsePageRange(val, totalPages)
+        setSelected(new Set(indices))
+        if (ffs && session) selectPages(indices.map((i) => session.pageIds[i]))
       } catch {
         /* keep */
       }
     } else {
       setSelected(new Set())
+      if (ffs) selectPages([])
     }
   }
 
@@ -122,6 +149,8 @@ export function Extract() {
 
   const handleProcess = async () => {
     if (!file || totalPages === null) return
+    const token = beginOperation('extract')
+    if (!token) return
     setProcessing(true)
     setError(null)
     setDone(false)
@@ -134,18 +163,21 @@ export function Extract() {
       ;(await dst.copyPages(src, indices)).forEach((p) => dst.addPage(p))
       const pdfBytes = await dst.save()
       const name = `${file.name.replace(/\.pdf$/i, '')}_extracted.pdf`
+      const committed = await commitOperation(pdfBytes, name, token, {
+        replace: !ffs,
+        pageIds:
+          ffs && session ? indices.map((i) => session.pageIds[i]) : undefined,
+        selectAll: true,
+      })
+      if (!committed) return
       lastOutput.current = pdfBytes
-      setSession(pdfBytes, name)
-      setFile(
-        new File([new Uint8Array(pdfBytes)], name, { type: 'application/pdf' }),
-      )
+      setFile(committed.file)
       setFfs(true)
-      bufRef.current = new Uint8Array(pdfBytes).buffer
+      bufRef.current = null
       setTotalPages(indices.length)
       setSelected(new Set(indices.map((_, index) => index)))
       setInputVal(indices.map((_, index) => index + 1).join(','))
-      setOutBytes(pdfBytes)
-      setOutName(name)
+
       setDone(true)
     } catch (e) {
       setError(
@@ -154,6 +186,7 @@ export function Extract() {
           : t('errors.processing'),
       )
     } finally {
+      endOperation(token)
       setProcessing(false)
     }
   }
@@ -163,15 +196,9 @@ export function Extract() {
     setInputVal('')
     setDone(false)
     setError(null)
-    setOutBytes(null)
-    setOutName('')
+
     if (session) {
-      loadFile(
-        new File([new Uint8Array(session.bytes)], session.name, {
-          type: 'application/pdf',
-        }),
-        true,
-      )
+      loadFile(session.file, true)
     } else {
       setFile(null)
       setFfs(false)
@@ -193,7 +220,7 @@ export function Extract() {
         <ProcessingStatus busy={processing} />
         <CardContent aria-busy={processing} className="space-y-6">
           <FileDropZone
-            disabled={processing}
+            disabled={processing || documentBusy}
             onFiles={handleFile}
             hasFile={!!file}
             fileLabel={
@@ -201,14 +228,7 @@ export function Extract() {
             }
             sessionName={!file && session ? session.name : undefined}
             onUseSession={
-              !file && session
-                ? () =>
-                    handleFile([
-                      new File([new Uint8Array(session.bytes)], session.name, {
-                        type: 'application/pdf',
-                      }),
-                    ])
-                : undefined
+              !file && session ? () => handleFile([session.file]) : undefined
             }
           />
           {file && totalPages !== null && (
@@ -228,13 +248,21 @@ export function Extract() {
                 <p className="text-xs text-muted-foreground">
                   {t('tools.extract.previewHint')}
                 </p>
-                <PdfPageGrid
-                  file={file}
-                  count={totalPages}
-                  selected={selected}
-                  onSelect={togglePage}
-                  disabled={processing}
-                />
+                {ffs ? (
+                  <p className="text-sm text-muted-foreground">
+                    <a className="underline" href="#current-document-pages">
+                      {t('document.selectInPanel')}
+                    </a>
+                  </p>
+                ) : (
+                  <PdfPageGrid
+                    file={file}
+                    count={totalPages}
+                    selected={selected}
+                    onSelect={togglePage}
+                    disabled={processing || documentBusy}
+                  />
+                )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="extract-range">
@@ -275,30 +303,19 @@ export function Extract() {
           <div className="flex flex-wrap gap-2">
             <Button
               onClick={handleProcess}
-              disabled={!file || selected.size === 0 || processing}
+              disabled={
+                !file || selected.size === 0 || processing || documentBusy
+              }
               className="flex-1"
             >
               {processing ? t('common.processing') : t('common.apply')}
             </Button>
-            {done && outBytes && (
+            {file && !done && (
               <Button
                 variant="outline"
-                className="gap-1.5"
-                onClick={() =>
-                  downloadBlob(
-                    new Blob([new Uint8Array(outBytes)], {
-                      type: 'application/pdf',
-                    }),
-                    outName,
-                  )
-                }
+                disabled={processing || documentBusy}
+                onClick={handleReset}
               >
-                <Download className="h-4 w-4" />
-                {t('common.downloadResult')}
-              </Button>
-            )}
-            {file && !done && (
-              <Button variant="outline" onClick={handleReset}>
                 {t('common.reset')}
               </Button>
             )}

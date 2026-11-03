@@ -243,3 +243,28 @@
     border-radius: 0;
   }
 }
+
+@media (min-width: 1280px) {
+  .workspace-main {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(360px, 0.85fr);
+    column-gap: 1.5rem;
+    align-items: start;
+  }
+  .workspace-main > header {
+    grid-column: 1 / -1;
+  }
+  .workspace-main > .document-panel {
+    grid-column: 2;
+    grid-row: 2;
+  }
+  .workspace-main > .workspace-tool {
+    grid-column: 1;
+    grid-row: 2;
+  }
+}
+@media (max-width: 1279px) {
+  .document-panel {
+    margin-bottom: 1.5rem;
+  }
+}

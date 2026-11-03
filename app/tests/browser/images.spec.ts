@@ -618,7 +618,7 @@ test('image upload, queue and configuration remain accessible in both languages/
   ).toEqual([])
 })
 
-test('conversion failure and a concurrent session change never discard existing work', async ({
+test('conversion failure rolls back and a locked replacement can be undone', async ({
   page,
 }) => {
   await upload(page, [await image(page, 'existing.jpg', 'image/jpeg')])
@@ -670,15 +670,15 @@ test('conversion failure and a concurrent session change never discard existing 
     .getByRole('alertdialog')
     .getByRole('button', { name: 'Replace and create PDF', exact: true })
     .click()
-  await page.getByRole('button', { name: 'Discard', exact: true }).click()
-  await page
-    .getByRole('alertdialog')
-    .getByRole('button', { name: 'Discard', exact: true })
-    .click()
-  await expect(panel(page).getByRole('alert')).toContainText(
-    'working PDF changed during conversion',
-  )
   await expect(
-    page.getByRole('button', { name: 'Download', exact: true }),
-  ).toHaveCount(0)
+    page.getByRole('button', { name: 'Discard', exact: true }),
+  ).toBeDisabled()
+  await expect(
+    page.getByRole('button', { name: 'Undo', exact: true }),
+  ).toBeDisabled()
+  await expect(
+    panel(page).getByText('PDF ready.', { exact: false }),
+  ).toBeVisible({ timeout: 15000 })
+  await page.getByRole('button', { name: 'Undo', exact: true }).click()
+  expect(await download(page)).toEqual(before)
 })

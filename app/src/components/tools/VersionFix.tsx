@@ -7,7 +7,7 @@ import {
 } from '@/lib/pdf-document'
 import { useState, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { FileText, AlertCircle, CheckCircle2, Download } from 'lucide-react'
+import { FileText, AlertCircle, CheckCircle2 } from 'lucide-react'
 import {
   Card,
   CardContent,
@@ -27,11 +27,7 @@ import {
 } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
 import { FileDropZone } from './FileDropZone'
-import {
-  readFileAsArrayBuffer,
-  formatFileSize,
-  downloadBlob,
-} from '@/lib/pdf-utils'
+import { readFileAsArrayBuffer, formatFileSize } from '@/lib/pdf-utils'
 import { useSession } from '@/lib/session-context'
 
 const PDF_VERSIONS = [
@@ -51,7 +47,13 @@ export function VersionFix() {
   const { t } = useTranslation()
   const active = useActiveTool()
   const lastOutput = useRef<Uint8Array | null>(null)
-  const { session, setSession } = useSession()
+  const {
+    session,
+    busy: documentBusy,
+    beginOperation,
+    commitOperation,
+    endOperation,
+  } = useSession()
   const [file, setFile] = useState<File | null>(null)
   const [ffs, setFfs] = useState(false)
   const detectionRequest = useRef(0)
@@ -61,8 +63,6 @@ export function VersionFix() {
   const [processing, setProcessing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [done, setDone] = useState(false)
-  const [outBytes, setOutBytes] = useState<Uint8Array | null>(null)
-  const [outName, setOutName] = useState('')
 
   const detect = async (f: File) => {
     const request = ++detectionRequest.current
@@ -84,24 +84,34 @@ export function VersionFix() {
   }
 
   useEffect(() => {
-    if (!active || (session && session.bytes === lastOutput.current)) return
+    if (!active) {
+      if (ffs) {
+        setFile(null)
+        lastOutput.current = null
+      }
+      return
+    }
+    if (
+      session &&
+      session.bytes === lastOutput.current &&
+      file === session.file
+    )
+      return
     if (session && (!file || ffs)) {
-      const f = new File([new Uint8Array(session.bytes)], session.name, {
-        type: 'application/pdf',
-      })
+      const f = session.file
       setFile(f)
       setFfs(true)
       setDone(false)
       setError(null)
-      setOutBytes(null)
-      setOutName('')
+
       detect(f)
     } else if (!session && ffs) {
+      lastOutput.current = null
       setFile(null)
       setFfs(false)
       setDetected(null)
     }
-  }, [session, active])
+  }, [session?.revision, active])
 
   const handleFile = async (files: File[]) => {
     const f = files[0]
@@ -109,29 +119,34 @@ export function VersionFix() {
     setFfs(false)
     setDone(false)
     setError(null)
-    setOutBytes(null)
-    setOutName('')
+
     await detect(f)
   }
 
   const handleProcess = async () => {
     if (!file) return
+    const token = beginOperation('versionFix')
+    if (!token) return
     setProcessing(true)
     setError(null)
     setDone(false)
     try {
-      const buf = await readFileAsArrayBuffer(file)
-      const patched = await rewriteVersion(new Uint8Array(buf), targetVersion)
-      const name = `${file.name.replace(/\.pdf$/i, '')}_v${targetVersion}.pdf`
-      lastOutput.current = patched
-      setSession(patched, name)
-      setFile(
-        new File([new Uint8Array(patched)], name, { type: 'application/pdf' }),
+      const buf =
+        ffs && session ? session.bytes : await readFileAsArrayBuffer(file)
+      const patched = await rewriteVersion(
+        buf instanceof Uint8Array ? buf : new Uint8Array(buf),
+        targetVersion,
       )
+      const name = `${file.name.replace(/\.pdf$/i, '')}_v${targetVersion}.pdf`
+      const committed = await commitOperation(patched, name, token, {
+        replace: !ffs,
+      })
+      if (!committed) return
+      lastOutput.current = patched
+      setFile(committed.file)
       setFfs(true)
       setDetected(targetVersion)
-      setOutBytes(patched)
-      setOutName(name)
+
       setDone(true)
     } catch (e) {
       setError(
@@ -140,6 +155,7 @@ export function VersionFix() {
           : t('errors.processing'),
       )
     } finally {
+      endOperation(token)
       setProcessing(false)
     }
   }
@@ -147,12 +163,9 @@ export function VersionFix() {
   const handleReset = () => {
     setDone(false)
     setError(null)
-    setOutBytes(null)
-    setOutName('')
+
     if (session) {
-      const f = new File([new Uint8Array(session.bytes)], session.name, {
-        type: 'application/pdf',
-      })
+      const f = session.file
       setFile(f)
       setFfs(true)
       detect(f)
@@ -192,7 +205,7 @@ export function VersionFix() {
             <p className="mt-2">{t('tools.versionFix.details')}</p>
           </details>
           <FileDropZone
-            disabled={processing}
+            disabled={processing || documentBusy}
             onFiles={handleFile}
             hasFile={!!file}
             fileLabel={
@@ -200,14 +213,7 @@ export function VersionFix() {
             }
             sessionName={!file && session ? session.name : undefined}
             onUseSession={
-              !file && session
-                ? () =>
-                    handleFile([
-                      new File([new Uint8Array(session.bytes)], session.name, {
-                        type: 'application/pdf',
-                      }),
-                    ])
-                : undefined
+              !file && session ? () => handleFile([session.file]) : undefined
             }
           />
           {file && (
@@ -236,13 +242,12 @@ export function VersionFix() {
                     {t('tools.versionFix.targetVersion')}
                   </Label>
                   <Select
-                    disabled={processing}
+                    disabled={processing || documentBusy}
                     value={targetVersion}
                     onValueChange={(v) => {
                       setTargetVersion(v as PdfVersion)
                       setDone(false)
                       setError(null)
-                      setOutBytes(null)
                     }}
                   >
                     <SelectTrigger
@@ -298,30 +303,17 @@ export function VersionFix() {
           <div className="flex flex-wrap gap-2">
             <Button
               onClick={handleProcess}
-              disabled={!file || processing}
+              disabled={!file || processing || documentBusy}
               className="flex-1"
             >
               {processing ? t('common.processing') : t('common.apply')}
             </Button>
-            {done && outBytes && (
+            {file && !done && (
               <Button
                 variant="outline"
-                className="gap-1.5"
-                onClick={() =>
-                  downloadBlob(
-                    new Blob([new Uint8Array(outBytes)], {
-                      type: 'application/pdf',
-                    }),
-                    outName,
-                  )
-                }
+                disabled={processing || documentBusy}
+                onClick={handleReset}
               >
-                <Download className="h-4 w-4" />
-                {t('common.downloadResult')}
-              </Button>
-            )}
-            {file && !done && (
-              <Button variant="outline" onClick={handleReset}>
                 {t('common.reset')}
               </Button>
             )}

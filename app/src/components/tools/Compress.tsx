@@ -3,13 +3,7 @@ import { useActiveTool } from '@/lib/active-tool-context'
 import { loadPdf, PdfInputError } from '@/lib/pdf-document'
 import { useState, useEffect, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-  Minimize2,
-  AlertCircle,
-  CheckCircle2,
-  Info,
-  Download,
-} from 'lucide-react'
+import { Minimize2, AlertCircle, CheckCircle2, Info } from 'lucide-react'
 import {
   Card,
   CardContent,
@@ -20,18 +14,20 @@ import {
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { FileDropZone } from './FileDropZone'
-import {
-  readFileAsArrayBuffer,
-  formatFileSize,
-  downloadBlob,
-} from '@/lib/pdf-utils'
+import { readFileAsArrayBuffer, formatFileSize } from '@/lib/pdf-utils'
 import { useSession } from '@/lib/session-context'
 
 export function Compress() {
   const { t } = useTranslation()
   const active = useActiveTool()
   const lastOutput = useRef<Uint8Array | null>(null)
-  const { session, setSession } = useSession()
+  const {
+    session,
+    busy: documentBusy,
+    beginOperation,
+    commitOperation,
+    endOperation,
+  } = useSession()
   const [file, setFile] = useState<File | null>(null)
   const [ffs, setFfs] = useState(false) // fileFromSession
   const [origSize, setOrigSize] = useState<number | null>(null)
@@ -39,29 +35,36 @@ export function Compress() {
   const [processing, setProcessing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [done, setDone] = useState(false)
-  const [outBytes, setOutBytes] = useState<Uint8Array | null>(null)
-  const [outName, setOutName] = useState('')
 
   useEffect(() => {
-    if (!active || (session && session.bytes === lastOutput.current)) return
+    if (!active) {
+      if (ffs) {
+        setFile(null)
+        lastOutput.current = null
+      }
+      return
+    }
+    if (
+      session &&
+      session.bytes === lastOutput.current &&
+      file === session.file
+    )
+      return
     if (session && (!file || ffs)) {
-      const f = new File([new Uint8Array(session.bytes)], session.name, {
-        type: 'application/pdf',
-      })
+      const f = session.file
       setFile(f)
       setOrigSize(session.bytes.byteLength)
       setFfs(true)
       setCompSize(null)
       setDone(false)
       setError(null)
-      setOutBytes(null)
-      setOutName('')
     } else if (!session && ffs) {
+      lastOutput.current = null
       setFile(null)
       setFfs(false)
       setOrigSize(null)
     }
-  }, [session, active])
+  }, [session?.revision, active])
 
   const handleFile = (files: File[]) => {
     const f = files[0]
@@ -71,31 +74,34 @@ export function Compress() {
     setCompSize(null)
     setDone(false)
     setError(null)
-    setOutBytes(null)
-    setOutName('')
   }
 
   const handleProcess = async () => {
     if (!file) return
+    const token = beginOperation('compress')
+    if (!token) return
     setProcessing(true)
     setError(null)
     setDone(false)
     try {
       setOrigSize(file.size)
-      const original = new Uint8Array(await readFileAsArrayBuffer(file))
+      const original =
+        ffs && session
+          ? session.bytes
+          : new Uint8Array(await readFileAsArrayBuffer(file))
       const doc = await loadPdf(original)
       const candidate = await doc.save({ useObjectStreams: true })
       const pdfBytes = candidate.length < original.length ? candidate : original
       const name = `${file.name.replace(/\.pdf$/i, '')}_compressed.pdf`
       setCompSize(candidate.length)
+      const committed = await commitOperation(pdfBytes, name, token, {
+        replace: !ffs,
+      })
+      if (!committed) return
       lastOutput.current = pdfBytes
-      setSession(pdfBytes, name)
-      setFile(
-        new File([new Uint8Array(pdfBytes)], name, { type: 'application/pdf' }),
-      )
+      setFile(committed.file)
       setFfs(true)
-      setOutBytes(pdfBytes)
-      setOutName(name)
+
       setDone(true)
     } catch (e) {
       setError(
@@ -104,6 +110,7 @@ export function Compress() {
           : t('errors.processing'),
       )
     } finally {
+      endOperation(token)
       setProcessing(false)
     }
   }
@@ -112,12 +119,9 @@ export function Compress() {
     setCompSize(null)
     setDone(false)
     setError(null)
-    setOutBytes(null)
-    setOutName('')
+
     if (session) {
-      const f = new File([new Uint8Array(session.bytes)], session.name, {
-        type: 'application/pdf',
-      })
+      const f = session.file
       setFile(f)
       setOrigSize(session.bytes.byteLength)
       setFfs(true)
@@ -146,7 +150,7 @@ export function Compress() {
         <ProcessingStatus busy={processing} />
         <CardContent aria-busy={processing} className="space-y-6">
           <FileDropZone
-            disabled={processing}
+            disabled={processing || documentBusy}
             onFiles={handleFile}
             hasFile={!!file}
             fileLabel={
@@ -154,14 +158,7 @@ export function Compress() {
             }
             sessionName={!file && session ? session.name : undefined}
             onUseSession={
-              !file && session
-                ? () =>
-                    handleFile([
-                      new File([new Uint8Array(session.bytes)], session.name, {
-                        type: 'application/pdf',
-                      }),
-                    ])
-                : undefined
+              !file && session ? () => handleFile([session.file]) : undefined
             }
           />
           <div className="flex items-start gap-2 rounded-md bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
@@ -224,30 +221,17 @@ export function Compress() {
           <div className="flex flex-wrap gap-2">
             <Button
               onClick={handleProcess}
-              disabled={!file || processing}
+              disabled={!file || processing || documentBusy}
               className="flex-1"
             >
               {processing ? t('common.processing') : t('common.apply')}
             </Button>
-            {done && outBytes && (
+            {file && !done && (
               <Button
                 variant="outline"
-                className="gap-1.5"
-                onClick={() =>
-                  downloadBlob(
-                    new Blob([new Uint8Array(outBytes)], {
-                      type: 'application/pdf',
-                    }),
-                    outName,
-                  )
-                }
+                disabled={processing || documentBusy}
+                onClick={handleReset}
               >
-                <Download className="h-4 w-4" />
-                {t('common.downloadResult')}
-              </Button>
-            )}
-            {file && !done && (
-              <Button variant="outline" onClick={handleReset}>
                 {t('common.reset')}
               </Button>
             )}
