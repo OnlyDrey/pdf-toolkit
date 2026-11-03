@@ -90,6 +90,12 @@ test.beforeEach(async ({ page }) => {
 test('JPEG keeps original data, uses centered A4 and continues through the shared editing session', async ({
   page,
 }) => {
+  await page.evaluate(() =>
+    Object.defineProperty(window.crypto, 'randomUUID', {
+      value: undefined,
+      configurable: true,
+    }),
+  )
   const sent: string[] = []
   page.on('request', (request) => {
     if (request.method() !== 'GET') sent.push(request.url())

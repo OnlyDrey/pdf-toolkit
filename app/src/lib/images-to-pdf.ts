@@ -210,6 +210,8 @@ async function decode(file: File) {
     return invalid()
   }
 }
+// Queue IDs are local identifiers, not secrets; support plain-HTTP LAN deployments too.
+let nextImageId = 0
 export async function prepareImage(file: File): Promise<ImageEntry> {
   validateImageBatch([file])
   const info = inspectImage(new Uint8Array(await file.arrayBuffer()))
@@ -226,7 +228,7 @@ export async function prepareImage(file: File): Promise<ImageEntry> {
     context.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
     return {
       ...info,
-      id: crypto.randomUUID(),
+      id: `image-${++nextImageId}`,
       file,
       thumbnail: URL.createObjectURL(await canvasBlob(canvas)),
     }
