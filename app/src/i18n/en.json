@@ -256,7 +256,10 @@
     "loading": "Loading page {{page}}",
     "imageLimited": "A lightweight thumbnail is shown to protect decoding memory. Original image quality is unchanged.",
     "bounded": "Preview resolution is bounded; export resolution is unchanged.",
-    "reset": "Reset zoom"
+    "reset": "Reset zoom",
+    "inline": "Current page preview",
+    "fullscreen": "Fullscreen",
+    "exitFullscreen": "Exit fullscreen"
   },
   "document": {
     "open": "Open PDF",

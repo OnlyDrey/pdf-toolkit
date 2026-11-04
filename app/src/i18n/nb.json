@@ -256,7 +256,10 @@
     "loading": "Laster side {{page}}",
     "imageLimited": "Et lett miniatyrbilde vises for å begrense dekodingsminnet. Originalens bildekvalitet er uendret.",
     "bounded": "Forhåndsvisningen har begrenset oppløsning; eksportoppløsningen er uendret.",
-    "reset": "Nullstill zoom"
+    "reset": "Nullstill zoom",
+    "inline": "Forhåndsvisning av gjeldende side",
+    "fullscreen": "Fullskjerm",
+    "exitFullscreen": "Avslutt fullskjerm"
   },
   "document": {
     "open": "Åpne PDF",

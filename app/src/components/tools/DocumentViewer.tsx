@@ -1,6 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { X, ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from 'lucide-react'
+import {
+  X,
+  ChevronLeft,
+  ChevronRight,
+  ZoomIn,
+  ZoomOut,
+  Maximize2,
+  Minimize2,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useModal, trapModalFocus } from '@/components/ui/use-modal'
 import {
@@ -31,7 +39,8 @@ export function DocumentViewer({
     [fit, setFit] = useState<'page' | 'width'>('page'),
     [bitmap, setBitmap] = useState<PreviewBitmap | null>(null),
     [error, setError] = useState(''),
-    [loading, setLoading] = useState(true)
+    [loading, setLoading] = useState(true),
+    [full, setFull] = useState(false)
   const sourceKey =
     source.kind === 'pdf'
       ? previewFileKey(source.file)
@@ -115,6 +124,20 @@ export function DocumentViewer({
       lease?.release()
     }
   }, [sourceKey, page, zoom, fit, bounds.width, bounds.height])
+  useEffect(() => {
+    const sync = () => setFull(document.fullscreenElement === dialog.current)
+    document.addEventListener('fullscreenchange', sync)
+    return () => {
+      document.removeEventListener('fullscreenchange', sync)
+      if (document.fullscreenElement === dialog.current)
+        void document.exitFullscreen().catch(() => {})
+    }
+  }, [])
+  const toggleFull = () => {
+    if (document.fullscreenElement)
+      void document.exitFullscreen().catch(() => {})
+    else void dialog.current?.requestFullscreen?.().catch(() => {})
+  }
   const move = (amount: number) =>
     setPage((value) => Math.max(0, Math.min(count - 1, value + amount)))
   return (
@@ -137,6 +160,20 @@ export function DocumentViewer({
         if (event.key === 'ArrowRight') {
           event.preventDefault()
           move(1)
+        }
+        if (event.key === 'PageUp') {
+          event.preventDefault()
+          move(-1)
+        }
+        if (event.key === 'PageDown') {
+          event.preventDefault()
+          move(1)
+        }
+        if (event.key === 'Home') setPage(0)
+        if (event.key === 'End') setPage(count - 1)
+        if (event.key === '0') {
+          setFit('page')
+          setZoom(1)
         }
         if (event.key === '+' || event.key === '=')
           setZoom((z) => Math.min(4, z + 0.25))
@@ -222,6 +259,24 @@ export function DocumentViewer({
         >
           {t('preview.fitPage')}
         </Button>
+        {typeof document.documentElement.requestFullscreen === 'function' && (
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-pressed={full}
+            aria-label={t(
+              full ? 'preview.exitFullscreen' : 'preview.fullscreen',
+            )}
+            title={t(full ? 'preview.exitFullscreen' : 'preview.fullscreen')}
+            onClick={toggleFull}
+          >
+            {full ? (
+              <Minimize2 className="h-4 w-4" />
+            ) : (
+              <Maximize2 className="h-4 w-4" />
+            )}
+          </Button>
+        )}
       </div>
       <div
         ref={area}

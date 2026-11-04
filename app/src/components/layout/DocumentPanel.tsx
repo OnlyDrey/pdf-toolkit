@@ -21,6 +21,7 @@ import { ActionsMenu } from '@/components/ui/actions-menu'
 import { ConfirmationDialog } from '@/components/ui/confirmation-dialog'
 import { PdfPageGrid } from '@/components/tools/PdfPageGrid'
 import { DocumentViewer } from '@/components/tools/DocumentViewer'
+import { DocumentPagePreview } from '@/components/tools/DocumentPagePreview'
 import { moveSelectedPages } from '@/lib/page-order'
 
 export function DocumentPanel() {
@@ -47,6 +48,7 @@ export function DocumentPanel() {
     [error, setError] = useState(''),
     [view, setView] = useState(false),
     [info, setInfo] = useState(false),
+    [focus, setFocus] = useState(0),
     [confirm, setConfirm] = useState<'clear' | 'delete' | null>(null),
     [destination, setDestination] = useState('1')
   const selected = new Set(
@@ -364,24 +366,44 @@ export function DocumentPanel() {
               </Button>
             </div>
           )}
-          <div id="current-document-pages">
-            <PdfPageGrid
-              file={session.file}
-              count={session.pageCount}
-              selected={selected}
+          <DocumentPagePreview
+            file={session.file}
+            count={session.pageCount}
+            page={focus}
+            onPage={setFocus}
+          />
+          {session.pageCount === 1 ? (
+            <Button
+              size="sm"
+              variant="outline"
+              aria-pressed={selected.has(0)}
               disabled={busy}
-              pageIds={session.pageIds}
-              onReorder={(order) => void edit('reorder', order)}
-              onSelect={(index) => {
-                const id = session.pageIds[index]
-                selectPages(
-                  selectedIds.includes(id)
-                    ? selectedIds.filter((item) => item !== id)
-                    : [...selectedIds, id],
-                )
-              }}
-            />
-          </div>
+              onClick={() =>
+                selectPages(selected.has(0) ? [] : session.pageIds)
+              }
+            >
+              {t('common.pageLabel', { page: 1 })}
+            </Button>
+          ) : (
+            <div id="current-document-pages">
+              <PdfPageGrid
+                file={session.file}
+                count={session.pageCount}
+                selected={selected}
+                disabled={busy}
+                pageIds={session.pageIds}
+                onReorder={(order) => void edit('reorder', order)}
+                onSelect={(index) => {
+                  const id = session.pageIds[index]
+                  selectPages(
+                    selectedIds.includes(id)
+                      ? selectedIds.filter((item) => item !== id)
+                      : [...selectedIds, id],
+                  )
+                }}
+              />
+            </div>
+          )}
         </>
       )}
       {discarded > 0 && (

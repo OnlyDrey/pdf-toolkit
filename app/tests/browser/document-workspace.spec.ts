@@ -205,3 +205,20 @@ test('obsolete preview URLs are released after repeated viewing, edits and disca
     .toBe(0)
   expect(await page.locator('canvas').count()).toBe(0)
 })
+
+test('inline preview shows the focused page, pages through the document and opens the viewer', async ({
+  page,
+}) => {
+  const inline = panel(page).locator('[data-inline-preview]')
+  await expect(inline).toContainText('Page 1 of 3')
+  await expect(inline.locator('img[data-pdf-preview="1"]')).toBeVisible()
+  await inline.getByRole('button', { name: 'Next page' }).click()
+  await expect(inline).toContainText('Page 2 of 3')
+  await expect(inline.locator('img[data-pdf-preview="2"]')).toBeVisible()
+  await inline.getByRole('button', { name: /Preview page 2/ }).click()
+  await expect(
+    page.getByRole('dialog', { name: 'Document preview' }),
+  ).toBeVisible()
+  await page.keyboard.press('End')
+  await expect(page.getByRole('dialog')).toContainText('Page 3 of 3')
+})
