@@ -344,7 +344,7 @@ jobs:
           fi
           {
             printf '## Release result\n\n**%s**\n\n' "$outcome"
-            printf 'Version: `%s`\n\nSource: `%s`\n\nImage digest: `%s`\n\n' "${TAG:-Not reserved}" "${SOURCE:-Not resolved}" "${DIGEST:-Not built}"
+            printf 'Version: `%s`\n\nSource: `%s`\n\nImage digest: `%s`\n\n' "${TAG:-Unavailable}" "${SOURCE:-Unavailable}" "${DIGEST:-Unavailable}"
             printf '| Stage | Result |\n| --- | --- |\n'
             printf '| Preparation | %s |\n| Validation | %s |\n| Build/scans | %s |\n| Approval | %s |\n| Publication | %s |\n' "${PREPARE:-unknown}" "${VALIDATE:-unknown}" "${BUILD:-unknown}" "${APPROVAL:-unknown}" "${PUBLISH:-unknown}"
             if [ "$outcome" != 'Published successfully' ]; then

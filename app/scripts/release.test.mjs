@@ -1112,8 +1112,9 @@ test('release reporting succeeds for failures/skips without implying publication
       assert.equal(result.status, 0, result.stderr)
       const text = readFileSync(report, 'utf8')
       assert.ok(text.includes(expected), text)
-      assert.match(text, /Not reserved/)
-      assert.match(text, /Not built/)
+      assert.match(text, /Version: `Unavailable`/)
+      assert.match(text, /Image digest: `Unavailable`/)
+      assert.doesNotMatch(text, /Not reserved/)
       assert.ok(text.includes(`| Validation | ${validate} |`))
       if (expected !== 'Published successfully') {
         assert.doesNotMatch(text, /Published successfully/)
