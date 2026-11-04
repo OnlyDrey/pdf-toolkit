@@ -7,6 +7,8 @@ import {
   X,
   AlertCircle,
   CheckCircle2,
+  ChevronUp,
+  ChevronDown,
 } from 'lucide-react'
 import {
   DndContext,
@@ -59,14 +61,20 @@ import {
 
 function ImageRow({
   entry,
+  index,
+  count,
   disabled,
   remove,
   preview,
+  move,
 }: {
   entry: ImageEntry
+  index: number
+  count: number
   disabled: boolean
   remove: () => void
   preview: () => void
+  move: (direction: -1 | 1) => void
 }) {
   const { t } = useTranslation()
   const {
@@ -122,6 +130,7 @@ function ImageRow({
       </button>
       <div className="min-w-0 flex-1">
         <p className="break-words text-sm font-medium [overflow-wrap:anywhere]">
+          <span className="mr-1 text-muted-foreground">{index + 1}.</span>
           {entry.file.name}
         </p>
         <p className="text-xs text-muted-foreground [overflow-wrap:anywhere]">
@@ -130,7 +139,32 @@ function ImageRow({
             height: entry.height,
           })}{' '}
           · {formatFileSize(entry.file.size)}
+          {!entry.thumbnail && ' · ' + t('common.previewUnavailable')}
         </p>
+      </div>
+      <div className="flex shrink-0 flex-col sm:flex-row">
+        {([-1, 1] as const).map((direction) => (
+          <button
+            key={direction}
+            type="button"
+            disabled={
+              disabled || index + direction < 0 || index + direction >= count
+            }
+            onClick={() => move(direction)}
+            aria-label={
+              t(direction < 0 ? 'common.moveUp' : 'common.moveDown') +
+              ': ' +
+              entry.file.name
+            }
+            className="flex min-h-[28px] min-w-[32px] items-center justify-center text-muted-foreground hover:text-foreground disabled:opacity-40 sm:min-h-[32px]"
+          >
+            {direction < 0 ? (
+              <ChevronUp className="h-4 w-4" />
+            ) : (
+              <ChevronDown className="h-4 w-4" />
+            )}
+          </button>
+        ))}
       </div>
       <button
         id={'image-remove-' + entry.id}
@@ -347,11 +381,7 @@ export function ImagesToPdf() {
           aria-live="polite"
           className="px-4 text-sm text-muted-foreground sm:px-6"
         >
-          {progress
-            ? t('tools.images.' + progress.stage, progress)
-            : done
-              ? t('common.appliedToSession')
-              : ''}
+          {progress ? t('tools.images.' + progress.stage, progress) : ''}
         </p>
         <CardContent aria-busy={busy} className="space-y-5">
           <div ref={upload}>
@@ -417,10 +447,22 @@ export function ImagesToPdf() {
                   strategy={verticalListSortingStrategy}
                 >
                   <ol className="space-y-2">
-                    {entries.map((entry) => (
+                    {entries.map((entry, index) => (
                       <ImageRow
                         key={entry.id}
                         entry={entry}
+                        index={index}
+                        count={entries.length}
+                        move={(direction) => {
+                          if (lock.current) return
+                          replace(
+                            arrayMove(
+                              entriesRef.current,
+                              index,
+                              index + direction,
+                            ),
+                          )
+                        }}
                         disabled={busy || documentBusy}
                         remove={() => remove(entry.id)}
                         preview={() =>
@@ -461,7 +503,7 @@ export function ImagesToPdf() {
           {done && (
             <div className="flex items-center gap-2 text-sm text-green-700 dark:text-green-400">
               <CheckCircle2 className="h-4 w-4" />
-              {t('tools.images.success')}
+              <span role="status">{t('tools.images.success')}</span>
             </div>
           )}
           <Button

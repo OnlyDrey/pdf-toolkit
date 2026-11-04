@@ -10,12 +10,14 @@ import {
   Trash2,
   ArrowUp,
   ArrowDown,
+  Info,
 } from 'lucide-react'
 import { useSession, DocumentOperationError } from '@/lib/session-context'
 import { loadPdf, PdfInputError } from '@/lib/pdf-document'
 import { rotatePages, removePages, reorderPages } from '@/lib/pdf-operations'
 import { formatFileSize, downloadBlob } from '@/lib/pdf-utils'
 import { Button } from '@/components/ui/button'
+import { ActionsMenu } from '@/components/ui/actions-menu'
 import { ConfirmationDialog } from '@/components/ui/confirmation-dialog'
 import { PdfPageGrid } from '@/components/tools/PdfPageGrid'
 import { DocumentViewer } from '@/components/tools/DocumentViewer'
@@ -44,6 +46,7 @@ export function DocumentPanel() {
     input = useRef<HTMLInputElement>(null),
     [error, setError] = useState(''),
     [view, setView] = useState(false),
+    [info, setInfo] = useState(false),
     [confirm, setConfirm] = useState<'clear' | 'delete' | null>(null),
     [destination, setDestination] = useState('1')
   const selected = new Set(
@@ -121,36 +124,38 @@ export function DocumentPanel() {
         moveSelectedPages(session.pageCount, selected, direction),
       )
   }
+  const history = (
+    <div className="flex gap-1">
+      <Button
+        variant="ghost"
+        size="sm"
+        disabled={busy || !canUndo}
+        onClick={undo}
+        title={t('document.undo')}
+        aria-label={t('document.undo')}
+      >
+        <Undo2 className="h-4 w-4" />
+      </Button>
+      <Button
+        variant="ghost"
+        size="sm"
+        disabled={busy || !canRedo}
+        onClick={redo}
+        title={t('document.redo')}
+        aria-label={t('document.redo')}
+      >
+        <Redo2 className="h-4 w-4" />
+      </Button>
+    </div>
+  )
   return (
     <aside
       className="document-panel min-w-0 space-y-4 rounded-lg border bg-card p-4"
       aria-label={t('session.working')}
     >
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="font-semibold">{t('session.working')}</h2>
-        <div className="flex gap-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            disabled={busy || !canUndo}
-            onClick={undo}
-            title={t('document.undo')}
-            aria-label={t('document.undo')}
-          >
-            <Undo2 className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            disabled={busy || !canRedo}
-            onClick={redo}
-            title={t('document.redo')}
-            aria-label={t('document.redo')}
-          >
-            <Redo2 className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
+      <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+        {t('session.working')}
+      </h2>
       <input
         ref={input}
         type="file"
@@ -166,79 +171,108 @@ export function DocumentPanel() {
         }}
       />
       {session ? (
-        <>
-          <p
-            className="break-words text-sm font-medium [overflow-wrap:anywhere]"
-            data-document-name
-          >
-            {session.name}
-          </p>
-          <p className="text-xs text-muted-foreground">
-            {formatFileSize(session.file.size)} ·{' '}
-            {t('document.pages', { count: session.pageCount })} ·{' '}
-            <span role="status">
-              {t(session.dirty ? 'document.unsaved' : 'document.saved')}
-            </span>
-          </p>
-        </>
-      ) : (
-        <p className="text-sm text-muted-foreground">{t('document.empty')}</p>
-      )}
-      <div className="flex flex-wrap gap-2">
-        <Button
-          ref={openButton}
-          size="sm"
-          variant="outline"
-          disabled={busy}
-          onClick={() => input.current?.click()}
-        >
-          <Upload className="mr-1 h-4 w-4" />
-          {t(session ? 'document.replace' : 'document.open')}
-        </Button>
-        {session && (
-          <>
+        <div className="space-y-3" data-document-toolbar>
+          <div className="min-w-0">
+            <p
+              className="break-words text-sm font-medium [overflow-wrap:anywhere]"
+              data-document-name
+            >
+              {session.name}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {formatFileSize(session.file.size)} ·{' '}
+              {t('document.pages', { count: session.pageCount })} ·{' '}
+              <span
+                role="status"
+                className={
+                  session.dirty ? 'font-medium text-foreground' : undefined
+                }
+              >
+                {busy
+                  ? t('document.processing', {
+                      operation: t('document.operations.' + operation),
+                    })
+                  : t(session.dirty ? 'document.unsaved' : 'document.saved')}
+              </span>
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {history}
+            <span className="ml-auto" />
             <Button
               size="sm"
               variant="outline"
               disabled={busy}
+              title={t('session.downloadHint')}
               onClick={() => download()}
             >
               <Download className="mr-1 h-4 w-4" />
               {t('session.download')}
             </Button>
-            <Button size="sm" disabled={busy} onClick={() => download(true)}>
+            <Button
+              size="sm"
+              disabled={busy}
+              title={t('session.saveHint')}
+              onClick={() => download(true)}
+            >
               {t('session.saveAndDownload')}
             </Button>
-            <Button
-              size="sm"
-              variant="ghost"
+            <ActionsMenu
+              label={t('document.moreActions')}
               disabled={busy}
-              onClick={() => setView(true)}
-            >
-              <Eye className="mr-1 h-4 w-4" />
-              {t('document.preview')}
-            </Button>
-            <Button
-              size="sm"
-              variant="destructive-ghost"
-              disabled={busy}
-              onClick={() => setConfirm('clear')}
-            >
-              {t('session.clear')}
-            </Button>
-          </>
-        )}
-      </div>
-      {session && (
-        <>
-          <details>
-            <summary className="cursor-pointer text-sm">
-              {t('document.info')}
-            </summary>
-            <p className="mt-2 text-xs text-muted-foreground">
+              actions={[
+                {
+                  key: 'preview',
+                  label: t('document.preview'),
+                  icon: <Eye className="h-4 w-4" />,
+                  onSelect: () => setView(true),
+                },
+                {
+                  key: 'replace',
+                  label: t('document.replace'),
+                  icon: <Upload className="h-4 w-4" />,
+                  onSelect: () => input.current?.click(),
+                },
+                {
+                  key: 'info',
+                  label: t('document.info'),
+                  icon: <Info className="h-4 w-4" />,
+                  onSelect: () => setInfo((value) => !value),
+                },
+                {
+                  key: 'clear',
+                  label: t('session.clear'),
+                  icon: <Trash2 className="h-4 w-4" />,
+                  destructive: true,
+                  onSelect: () => setConfirm('clear'),
+                },
+              ]}
+            />
+          </div>
+          {info && (
+            <p className="rounded-md bg-muted p-2 text-xs text-muted-foreground">
               {t('document.infoText', { revision: session.revision })}
             </p>
-          </details>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <p className="text-sm text-muted-foreground">{t('document.empty')}</p>
+          <Button
+            ref={openButton}
+            size="sm"
+            variant="outline"
+            disabled={busy}
+            onClick={() => input.current?.click()}
+          >
+            <Upload className="mr-1 h-4 w-4" />
+            {t('document.open')}
+          </Button>
+          {history}
+        </div>
+      )}
+      {session && (
+        <>
           <div className="flex flex-wrap items-center gap-2 text-xs">
             <span>{t('document.selected', { count: selected.size })}</span>
             <Button
@@ -349,13 +383,6 @@ export function DocumentPanel() {
             />
           </div>
         </>
-      )}
-      {busy && (
-        <p role="status" className="text-sm text-muted-foreground">
-          {t('document.processing', {
-            operation: t('document.operations.' + operation),
-          })}
-        </p>
       )}
       {discarded > 0 && (
         <p role="status" className="text-xs text-muted-foreground">

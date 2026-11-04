@@ -672,7 +672,7 @@ test('conversion failure rolls back and a locked replacement can be undone', asy
     .getByRole('button', { name: 'Replace and create PDF', exact: true })
     .click()
   await expect(
-    page.getByRole('button', { name: 'Discard', exact: true }),
+    page.getByRole('button', { name: 'More document actions' }),
   ).toBeDisabled()
   await expect(
     page.getByRole('button', { name: 'Undo', exact: true }),

@@ -1,4 +1,4 @@
-import { navigate, showTools } from './navigation'
+import { navigate, showTools, docAction } from './navigation'
 import { test, expect, type Page } from '@playwright/test'
 import { PDFDocument } from 'pdf-lib'
 
@@ -287,8 +287,8 @@ test('keyboard tabs, focus, document language and discard confirmation are predi
   await navigate(page, 'rotate')
   await upload(page, await pdf('confirm.pdf'))
   await apply(page)
-  const discard = page.getByRole('button', { name: 'Discard', exact: true })
-  await discard.click()
+  const discard = page.getByRole('button', { name: 'More document actions' })
+  await docAction(page, 'Discard')
   const dialog = page.getByRole('alertdialog')
   await expect(dialog).toBeVisible()
   await expect(
@@ -297,7 +297,7 @@ test('keyboard tabs, focus, document language and discard confirmation are predi
   await page.keyboard.press('Escape')
   await expect(dialog).not.toBeVisible()
   await expect(discard).toBeFocused()
-  await discard.click()
+  await docAction(page, 'Discard')
   await dialog.getByRole('button', { name: 'Discard', exact: true }).click()
   await expect(
     page.locator('.document-panel [data-document-name]'),

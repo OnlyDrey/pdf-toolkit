@@ -1,5 +1,5 @@
 import { settleAppearance } from './appearance'
-import { navigate } from './navigation'
+import { navigate, docAction } from './navigation'
 import { test, expect, type Page } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
 import { PDFDocument } from 'pdf-lib'
@@ -46,6 +46,7 @@ async function scan(page: Page, state: string, selector?: string) {
     'best-practice',
   ])
   if (selector) builder.include(selector)
+  await page.evaluate(() => window.scrollTo(0, 0))
   const results = await builder.analyze()
   if (results.violations.length)
     await test.info().attach(state, {
@@ -117,7 +118,7 @@ test('axe covers validation feedback, processing, dropdowns and discard dialog',
   await expect(
     active(page).getByRole('combobox', { name: 'Paper size' }),
   ).toBeFocused()
-  await page.getByRole('button', { name: 'Discard', exact: true }).click()
+  await docAction(page, 'Discard')
   await expect(page.getByRole('alertdialog')).toHaveJSProperty('open', true)
   await scan(page, 'discard-confirmation', '[role=alertdialog]')
   await page.keyboard.press('Escape')
@@ -221,7 +222,7 @@ test('keyboard reordering, invalid drops and confirmation focus stay accessible'
   await expect(active(page).getByRole('alert')).toContainText(
     'Choose PDF files',
   )
-  await page.getByRole('button', { name: 'Discard', exact: true }).click()
+  await docAction(page, 'Discard')
   const dialog = page.getByRole('alertdialog')
   await page.keyboard.press('Shift+Tab')
   await expect(
@@ -233,6 +234,6 @@ test('keyboard reordering, invalid drops and confirmation focus stay accessible'
   ).toBeFocused()
   await page.keyboard.press('Escape')
   await expect(
-    page.getByRole('button', { name: 'Discard', exact: true }),
+    page.getByRole('button', { name: 'More document actions' }),
   ).toBeFocused()
 })

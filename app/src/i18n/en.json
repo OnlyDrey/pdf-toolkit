@@ -23,7 +23,9 @@
     "useFile": "Session",
     "use": "Use",
     "confirmTitle": "Discard working file?",
-    "confirmDescription": "Download a copy first if you want to keep your changes."
+    "confirmDescription": "Download a copy first if you want to keep your changes.",
+    "downloadHint": "Download a copy. Keeps the unsaved-changes state.",
+    "saveHint": "Download and mark the document as saved."
   },
   "common": {
     "upload": "Upload",
@@ -308,6 +310,7 @@
       "reorder": "reorder pages"
     },
     "selectInPanel": "Select pages in the document panel, or enter a page range below.",
-    "pages_other": "{{count}} pages"
+    "pages_other": "{{count}} pages",
+    "moreActions": "More document actions"
   }
 }

@@ -1,7 +1,7 @@
 import { test, expect, type Page } from '@playwright/test'
 import { PDFDocument } from 'pdf-lib'
 import AxeBuilder from '@axe-core/playwright'
-import { navigate } from './navigation'
+import { navigate, docAction } from './navigation'
 const panel = (page: Page) =>
   page.getByRole('complementary', { name: 'Working on' })
 async function pdf(name = 'workspace.pdf') {
@@ -111,7 +111,7 @@ test('replacement confirmation, rollback, save retains document and discard clea
   await download
   await expect(p.getByText('Saved', { exact: false })).toBeVisible()
   await expect(p.locator('[data-document-name]')).toHaveText('workspace.pdf')
-  await p.getByRole('button', { name: 'Discard', exact: true }).click()
+  await docAction(page, 'Discard')
   await dialog.getByRole('button', { name: 'Discard', exact: true }).click()
   await expect(
     p.getByRole('button', { name: 'Undo', exact: true }),
@@ -179,9 +179,7 @@ test('obsolete preview URLs are released after repeated viewing, edits and disca
   await p.getByRole('button', { name: 'Page 1', exact: true }).click()
   await p.getByRole('button', { name: 'Rotate selected', exact: true }).click()
   for (let n = 0; n < 3; n++) {
-    await p
-      .getByRole('button', { name: 'Preview document', exact: true })
-      .click()
+    await docAction(page, 'Preview document')
     await expect(page.locator('.document-viewer img')).toBeVisible()
     await page.keyboard.press('ArrowRight')
     await expect(page.locator('.document-viewer img')).toBeVisible()
@@ -192,7 +190,7 @@ test('obsolete preview URLs are released after repeated viewing, edits and disca
       () => (window as Window & { previewCreates: number }).previewCreates,
     ),
   ).toBeGreaterThan(0)
-  await p.getByRole('button', { name: 'Discard', exact: true }).click()
+  await docAction(page, 'Discard')
   await page
     .getByRole('alertdialog')
     .getByRole('button', { name: 'Discard', exact: true })

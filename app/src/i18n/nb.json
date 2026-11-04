@@ -23,7 +23,9 @@
     "useFile": "Sesjon",
     "use": "Bruk",
     "confirmTitle": "Forkaste arbeidsfilen?",
-    "confirmDescription": "Last ned en kopi først hvis du vil beholde endringene."
+    "confirmDescription": "Last ned en kopi først hvis du vil beholde endringene.",
+    "downloadHint": "Last ned en kopi. Beholder status for ulagrede endringer.",
+    "saveHint": "Last ned og marker dokumentet som lagret."
   },
   "common": {
     "upload": "Last opp",
@@ -308,6 +310,7 @@
       "reorder": "endre siderekkefølge"
     },
     "selectInPanel": "Velg sider i dokumentpanelet, eller skriv inn et sideområde nedenfor.",
-    "pages_other": "{{count}} sider"
+    "pages_other": "{{count}} sider",
+    "moreActions": "Flere dokumenthandlinger"
   }
 }
