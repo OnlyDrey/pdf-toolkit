@@ -1,3 +1,4 @@
+import { settleAppearance } from './appearance'
 import { samplePreview } from './pixels'
 import { navigate } from './navigation'
 import { test, expect, type Page } from '@playwright/test'
@@ -578,6 +579,7 @@ test('image upload, queue and configuration remain accessible in both languages/
           name: theme === 'light' ? /Light|Lyst/ : /Dark|Mørkt/,
         })
         .click()
+      await settleAppearance(page)
       const result = await new AxeBuilder({ page })
         .withTags([
           'wcag2a',

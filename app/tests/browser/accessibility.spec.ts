@@ -1,3 +1,4 @@
+import { settleAppearance } from './appearance'
 import { navigate } from './navigation'
 import { test, expect, type Page } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
@@ -35,6 +36,7 @@ async function fixture(page: Page) {
   return input
 }
 async function scan(page: Page, state: string, selector?: string) {
+  await settleAppearance(page)
   const builder = new AxeBuilder({ page }).withTags([
     'wcag2a',
     'wcag2aa',

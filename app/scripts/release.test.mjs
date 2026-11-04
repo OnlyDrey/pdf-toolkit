@@ -1035,3 +1035,92 @@ test('owner confirmation rejects missing, failed or unrelated build/scans', asyn
     )
   }
 })
+
+test('release reporting succeeds for failures/skips without implying publication or changing gates', () => {
+  const workflow = readFileSync(
+    new URL('../../.github/workflows/release.yml', import.meta.url),
+    'utf8',
+  )
+  const job = workflow.split('  summary:\n')[1]
+  assert.match(job, /if: always\(\)/)
+  assert.match(job, /permissions: \{\}/)
+  const script = job
+    .split('        run: |\n')[1]
+    .split('\n')
+    .map((line) => line.replace(/^ {10}/, ''))
+    .join('\n')
+  const cases = [
+    [
+      'success',
+      'success',
+      'success',
+      'skipped',
+      'success',
+      'Published successfully',
+    ],
+    [
+      'success',
+      'success',
+      'success',
+      'success',
+      'success',
+      'Published successfully',
+    ],
+    ['failure', 'skipped', 'skipped', 'skipped', 'skipped', 'preparation'],
+    ['success', 'failure', 'skipped', 'skipped', 'skipped', 'validation'],
+    [
+      'success',
+      'success',
+      'failure',
+      'skipped',
+      'skipped',
+      'build or security',
+    ],
+    ['success', 'success', 'success', 'failure', 'skipped', 'approval'],
+    ['success', 'success', 'success', 'cancelled', 'skipped', 'approval'],
+    ['success', 'success', 'success', 'skipped', 'failure', 'publication'],
+    ['success', 'success', 'success', 'skipped', 'skipped', 'publication'],
+    ['success', 'failure', 'success', 'skipped', 'success', 'validation'],
+  ]
+  const folder = mkdtempSync(resolve(tmpdir(), 'release-report-'))
+  try {
+    for (const [
+      prepare,
+      validate,
+      build,
+      approval,
+      publish,
+      expected,
+    ] of cases) {
+      const report = resolve(folder, 'summary')
+      writeFileSync(report, '')
+      const result = spawnSync('bash', ['-e', '-c', script], {
+        encoding: 'utf8',
+        env: {
+          ...process.env,
+          GITHUB_STEP_SUMMARY: report,
+          TAG: '',
+          SOURCE: '',
+          DIGEST: '',
+          PREPARE: prepare,
+          VALIDATE: validate,
+          BUILD: build,
+          APPROVAL: approval,
+          PUBLISH: publish,
+        },
+      })
+      assert.equal(result.status, 0, result.stderr)
+      const text = readFileSync(report, 'utf8')
+      assert.ok(text.includes(expected), text)
+      assert.match(text, /Not reserved/)
+      assert.match(text, /Not built/)
+      assert.ok(text.includes(`| Validation | ${validate} |`))
+      if (expected !== 'Published successfully') {
+        assert.doesNotMatch(text, /Published successfully/)
+        assert.match(text, /never overwrite or reuse/)
+      }
+    }
+  } finally {
+    rmSync(folder, { recursive: true, force: true })
+  }
+})

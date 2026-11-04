@@ -27,7 +27,7 @@ export function AppearanceControls() {
             aria-label={t(`theme.${th}`)}
             aria-pressed={theme === th}
             className={cn(
-              'flex items-center justify-center min-h-8 min-w-8 rounded p-1.5 transition-colors',
+              'flex items-center justify-center min-h-8 min-w-8 rounded p-1.5',
               theme === th
                 ? 'bg-primary text-primary-foreground'
                 : 'text-muted-foreground hover:text-foreground',
@@ -41,6 +41,7 @@ export function AppearanceControls() {
       {/* Language toggle */}
       <div className="flex items-center gap-1">
         <Button
+          className="transition-none"
           variant={currentLang === 'en' ? 'default' : 'ghost'}
           size="sm"
           onClick={() => i18n.changeLanguage('en')}
@@ -48,6 +49,7 @@ export function AppearanceControls() {
           EN<span className="sr-only"> {t('language.en')}</span>
         </Button>
         <Button
+          className="transition-none"
           variant={currentLang === 'nb' ? 'default' : 'ghost'}
           size="sm"
           onClick={() => i18n.changeLanguage('nb')}

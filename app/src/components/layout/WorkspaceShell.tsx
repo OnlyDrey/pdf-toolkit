@@ -70,10 +70,10 @@ export function WorkspaceShell({
                   }
                   aria-label={t('nav.' + id)}
                   className={cn(
-                    'flex min-h-11 w-full items-center gap-3 rounded-md px-3 text-left text-sm transition-colors hover:bg-muted',
+                    'flex min-h-11 w-full items-center gap-3 rounded-md px-3 text-left text-sm',
                     active === id
                       ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-                      : 'text-muted-foreground hover:text-foreground',
+                      : 'text-muted-foreground hover:bg-muted hover:text-foreground',
                     desktop && collapsed && 'justify-center px-2',
                   )}
                 >

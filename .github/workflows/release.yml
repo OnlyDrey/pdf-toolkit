@@ -325,10 +325,29 @@ jobs:
           PREPARE: ${{ needs.prepare.result }}
           VALIDATE: ${{ needs.validate.result }}
           BUILD: ${{ needs.build.result }}
+          APPROVAL: ${{ needs.approval.result }}
           PUBLISH: ${{ needs.publish.result }}
         run: |
-          printf '## Release result\n\nVersion: `%s`\n\nSource: `%s`\n\nImage digest: `%s`\n\nPrepare: %s; CI: %s; build/scans: %s; publication: %s\n' "$TAG" "$SOURCE" "$DIGEST" "$PREPARE" "$VALIDATE" "$BUILD" "$PUBLISH" >> "$GITHUB_STEP_SUMMARY"
-          if [ "$PUBLISH" != success ]; then
-            echo 'Release incomplete. Any reserved tag is retained for traceability; inspect the failed job and artifacts. Never overwrite an existing version.' >> "$GITHUB_STEP_SUMMARY"
-            exit 1
+          outcome='Not published'
+          if [ "$PREPARE" != success ]; then
+            outcome='Not published: preparation rejected, failed or cancelled'
+          elif [ "$VALIDATE" != success ]; then
+            outcome='Not published: validation did not succeed'
+          elif [ "$BUILD" != success ]; then
+            outcome='Not published: build or security scanning did not succeed'
+          elif [ "$APPROVAL" != success ] && [ "$APPROVAL" != skipped ]; then
+            outcome='Not published: approval rejected, failed or cancelled'
+          elif [ "$PUBLISH" = success ]; then
+            outcome='Published successfully'
+          else
+            outcome='Not published: publication failed, skipped or cancelled'
           fi
+          {
+            printf '## Release result\n\n**%s**\n\n' "$outcome"
+            printf 'Version: `%s`\n\nSource: `%s`\n\nImage digest: `%s`\n\n' "${TAG:-Not reserved}" "${SOURCE:-Not resolved}" "${DIGEST:-Not built}"
+            printf '| Stage | Result |\n| --- | --- |\n'
+            printf '| Preparation | %s |\n| Validation | %s |\n| Build/scans | %s |\n| Approval | %s |\n| Publication | %s |\n' "${PREPARE:-unknown}" "${VALIDATE:-unknown}" "${BUILD:-unknown}" "${APPROVAL:-unknown}" "${PUBLISH:-unknown}"
+            if [ "$outcome" != 'Published successfully' ]; then
+              printf '\nInspect the failed or rejected stage and its artifacts. Any reserved tag is retained for traceability; never overwrite or reuse it. No publication is implied by a successful reporting job.\n'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
