@@ -20,7 +20,7 @@ This maintenance starts at `361cd69c40fdf057f294f318025f771300e92203` on `work`.
 
 Compatible transitive ranges were refreshed with npm's peer-aware resolver. The unused Radix Tabs wrapper/dependency was removed: workspace navigation uses grouped buttons rather than tabs. No replacement runtime dependency was introduced. PDF.js and its module worker resolve from the same installed package; worker assets are bundled locally.
 
-The Node builder advances from **24.22.1 / Alpine 3.23** to **24.22.2 / Alpine 3.24**. The stable non-root Nginx image remains **1.30.6-alpine-slim**, with its refreshed multi-platform digest. Both selected manifests contain Linux AMD64 and ARM64. Exact digests are maintained in [Dockerfile](../app/Dockerfile). Local execution still requires Node **24.13+ within 24.x LTS**, and the release engine uses Python **3.11+ standard library only**.
+The Node builder advances from **24.22.1 / Alpine 3.23** to **24.22.2 / Alpine 3.24**. The stable non-root Nginx image remains **1.30.6-alpine-slim**, with its refreshed multi-platform digest. Both selected manifests contain Linux AMD64 and ARM64. Exact digests are maintained in [Dockerfile](../app/Dockerfile). The builder installs and compiles in one snapshot after copying source, avoiding extra copies of installed modules on Docker’s `vfs` driver. Source changes rerun reproducible `npm ci`; a separate BuildKit npm cache reuses verified downloads. The runtime stage, non-root user, read-only support and secret-only CA handling are unchanged. Local execution still requires Node **24.13+ within 24.x LTS**, and the release engine uses Python **3.11+ standard library only**.
 
 ## Deliberately retained versions
 

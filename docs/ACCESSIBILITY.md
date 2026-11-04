@@ -6,7 +6,7 @@ All eight tools, the document panel, image queue, virtual page grid, modal previ
 
 ## Contrast and deterministic themes
 
-Light-mode muted text uses HSL `215.4 16.3% 35%`; dark-mode muted text uses `215 20.2% 72%`, with margin above normal-text AA contrast on supported surfaces. Inactive navigation has consistent muted text and foreground-on-muted hover/focus styling; active navigation keeps primary/primary-foreground styling.
+Light-mode muted text uses HSL `215.4 16.3% 35%`; dark-mode muted text uses `215 20.2% 72%`, with margin above normal-text AA contrast on supported surfaces. Inactive navigation has consistent muted text and foreground-on-muted hover styling and visible focus indicators; active navigation keeps primary/primary-foreground styling.
 
 Two individually accessible palettes can still interpolate through unreadable colors. ThemeProvider therefore applies light/dark/system changes in a layout effect, temporarily suppressing CSS transitions while the palette resolves. A `data-theme-changing` marker clears after rendering frames; the system-preference listener uses the same path. Navigation and language/theme selection controls do not tween opposing foreground/background colors. Reduced-motion and forced-colors behavior remain supported.
 
