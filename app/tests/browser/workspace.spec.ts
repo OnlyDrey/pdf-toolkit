@@ -54,7 +54,7 @@ test('responsive sidebar preserves tool controls and offers a modal mobile drawe
     await expect(page.locator('#workspace-menu')).toBeFocused()
     await expect(page.getByRole('dialog')).not.toBeVisible()
     await showTools(page)
-    await page.mouse.click((await page.viewportSize())!.width - 2, 300)
+    await page.mouse.click(2, 300)
     await expect(page.getByRole('dialog')).not.toBeVisible()
     await showTools(page)
     await page.getByRole('button', { name: 'Close tools', exact: true }).click()
@@ -66,4 +66,26 @@ test('responsive sidebar preserves tool controls and offers a modal mobile drawe
       () => document.documentElement.scrollWidth <= innerWidth,
     ),
   ).toBe(true)
+})
+
+test('topbar stays sticky and the hamburger is the rightmost control', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await page.evaluate(() => {
+    document.getElementById('main-content')!.style.minHeight = '4000px'
+    window.scrollTo(0, 1500)
+  })
+  const bar = page.locator('.workspace-topbar')
+  expect((await bar.boundingBox())!.y).toBe(0)
+  const menu = page.locator('#workspace-menu')
+  if (await menu.isVisible()) {
+    const box = (await menu.boundingBox())!
+    const width = page.viewportSize()!.width
+    expect(box.x + box.width).toBeGreaterThan(width - 24)
+    const theme = (await page
+      .getByRole('button', { name: 'Light', exact: true })
+      .boundingBox())!
+    expect(theme.x).toBeLessThan(box.x)
+  }
 })

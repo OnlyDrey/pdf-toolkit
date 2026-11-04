@@ -157,13 +157,14 @@ export function WorkspaceShell({
         {t('common.skipToContent')}
       </a>
       {desktop ? (
-        <aside className="sticky top-0 flex h-screen flex-col gap-3 overflow-y-auto border-r bg-card p-3">
+        <aside className="sticky top-0 flex h-dvh flex-col gap-3 overflow-y-auto overscroll-contain border-r bg-card p-3">
           {sidebar}
         </aside>
       ) : (
         <dialog
           ref={dialog}
           aria-label={t('nav.tools')}
+          id="workspace-drawer"
           className="workspace-drawer"
           onCancel={(event) => {
             event.preventDefault()
@@ -187,27 +188,31 @@ export function WorkspaceShell({
         </dialog>
       )}
       <div className="min-w-0">
-        <header className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3 md:px-7">
+        <header className="workspace-topbar">
           {!desktop ? (
-            <div className="flex min-w-0 max-w-full items-center gap-2">
+            <Brand />
+          ) : (
+            <span className="text-sm text-muted-foreground">
+              {t('workspace.local')}
+            </span>
+          )}
+          <div className="flex shrink-0 items-center gap-2">
+            <AppearanceControls />
+            {!desktop && (
               <Button
                 id="workspace-menu"
                 variant="ghost"
                 size="icon"
                 aria-label={t('workspace.openNav')}
                 aria-expanded={open}
+                aria-haspopup="dialog"
+                aria-controls="workspace-drawer"
                 onClick={() => setOpen(true)}
               >
                 <Menu className="h-5 w-5" />
               </Button>
-              <Brand />
-            </div>
-          ) : (
-            <span className="text-sm text-muted-foreground">
-              {t('workspace.local')}
-            </span>
-          )}
-          <AppearanceControls />
+            )}
+          </div>
         </header>
         {children}
       </div>
