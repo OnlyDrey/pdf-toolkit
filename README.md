@@ -6,7 +6,7 @@ Simple PDF tools in English and Norwegian Bokmål, processed entirely in your br
 
 Convert JPEG, PNG, WebP, GIF and BMP images to PDF; merge, compress, extract, rotate, resize, crop and inspect/fix PDF version headers. High-resolution JPEG/PNG conversion preserves source pixels where technically feasible.
 
-A grouped responsive sidebar and accessible mobile drawer keep tools in one document workspace. The shared panel provides download/save, page selection, rotation, removal/reordering and bounded Undo/Redo. Lazy PDF thumbnails, bounded image previews and a zoom viewer keep preview resolution separate from export quality. English/Norwegian Bokmål and light/dark/system themes are included. See [workspace and memory limits](docs/WORKSPACE.md).
+A sticky topbar, a grouped responsive sidebar and an accessible right-side mobile drawer keep tools in one document workspace. The shared panel provides a compact document toolbar (Undo/Redo, Download, Save & Download and a more-actions menu), an inline page preview, page selection, rotation, removal/reordering and bounded Undo/Redo. Lazy PDF thumbnails, bounded image previews and a zoom viewer keep preview resolution separate from export quality. English/Norwegian Bokmål and light/dark/system themes are included. See [workspace and memory limits](docs/WORKSPACE.md).
 
 ## Privacy-first architecture
 

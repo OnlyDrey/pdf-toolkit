@@ -4,6 +4,10 @@
 
 `app/src/lib/tools.ts` is the single registry for all eight tool components, icons and categories. WorkspaceShell uses it for the expanded/collapsed desktop sidebar and accessible mobile drawer; it does not duplicate tool definitions. Appearance controls share one implementation. Only presentation preferences are remembered locally. The shell supplies one visible tool heading; mounted panels preserve control settings across navigation.
 
+### Sticky topbar and drawer
+
+The topbar is `position: sticky` (no scroll listeners) above the content column and respects safe-area insets. On small screens it shows the brand on the left and, on the right, theme, language and the hamburger. The hamburger opens a native modal drawer from the right that traps focus, locks background scrolling, exposes `aria-expanded`/`aria-controls`, and closes on Escape, backdrop click or tool selection, restoring focus to the hamburger. The desktop sidebar stays full-height and sticky with its own scroll area, so only the page scrolls.
+
 The document panel sits beside tool controls on wide screens and stacks on smaller screens. Open a PDF there, or create one with Merge or Images to PDF, then continue with the same working document across tools. The mobile drawer closes on selection, Escape or backdrop and restores focus. Theme transitions resolve atomically as described in [accessibility](ACCESSIBILITY.md).
 
 ## Shared state and transactional operations
@@ -11,6 +15,8 @@ The document panel sits beside tool controls on wide screens and stacks on small
 SessionProvider wraps the existing session around DocumentStore (`app/src/lib/document-store.ts`). The store owns immutable-by-ownership PDF bytes, one current File, filename, monotonic revision, stable page IDs, selection, unsaved status and history. It is the document source of truth; tools do not create independent working sessions.
 
 All eight tools acquire an operation token and commit through the provider. A result is parsed/validated and its original revision rechecked before the working state changes. Failure leaves the previous valid document intact. Concurrent conflicting edits and Undo/Redo are locked during an operation. Successful commits invalidate prior-file previews. Inactive tools release session-derived file/result references; explicitly staged source files remain available where appropriate.
+
+The panel is a compact toolbar: filename, size, page count and one status line (Processing, Unsaved changes or Saved), Undo/Redo, a secondary **Download** (copy; keeps unsaved status), the primary **Save & Download**, and a **More document actions** menu (Preview document, Replace document, Document information, Discard). Discard asks for confirmation. Source files (for example the Images to PDF queue: index, name, dimensions, size, thumbnail or placeholder, drag handle, move up/down and remove) are separate from the single working document; converting commits one atomic operation to the shared session and never copies file data into a second state.
 
 Download exports without clearing unsaved status. Save & Download marks the current revision saved **and keeps it open**. Confirmed Discard clears the working document and all history. Replacing unsaved work asks for confirmation; an approved replacement can be undone. Existing operations, including Extract, still update the working document; no export-only operation was silently changed into a replacement.
 
@@ -30,7 +36,9 @@ A two-slot queue limits concurrent work. Shared PDF.js document leases cover at 
 
 PdfPageGrid virtualizes a bounded row window; IntersectionObserver gates visible/near-visible thumbnails. A 300-page regression mounts fewer than 50 page cells. Fixed thumbnail frames prevent loading from moving controls. Revisions invalidate old thumbnails; corrupt/encrypted/unsafe previews show fallbacks without altering document bytes.
 
-DocumentViewer provides previous/next, page counter, arrows, **50–400% zoom**, fit-width/page, reset, scrolling/panning, Escape and focus restoration. PDF zoom requests are debounced; each rendered surface is limited to **four million pixels**. This avoids unbounded zoom canvases but is not full-resolution tiled viewing.
+The panel shows a large **inline page preview** of the focused page with previous/next (a one-page PDF gets the whole area and a single page toggle instead of a thumbnail grid); it uses the same cache, queue and cancellation as every other preview, and a failed render shows a notice while editing and export stay available. Thumbnails below it remain lazy and virtualized.
+
+DocumentViewer provides previous/next, page counter, arrows, **50–400% zoom**, fit-width/page, reset, scrolling/panning, Escape, fullscreen (when the browser allows it) and focus restoration. Shortcuts: arrows or PageUp/PageDown change page, Home/End jump to first/last, +/- zoom, 0 resets to fit page. PDF zoom requests are debounced; each rendered surface is limited to **four million pixels**. This avoids unbounded zoom canvases but is not full-resolution tiled viewing.
 
 ## Large images and practical limits
 
