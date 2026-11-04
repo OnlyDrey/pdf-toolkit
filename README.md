@@ -4,7 +4,9 @@ Simple PDF tools in English and Norwegian Bokmål, processed entirely in your br
 
 ## Features
 
-Convert images to PDF, merge, extract, rotate, resize, crop, structurally compress and inspect PDF version headers. Images to PDF supports JPEG, PNG, WebP, GIF and BMP with page sizing, thumbnails and reordering. High-resolution JPEG/PNG processing preserves source pixels; see the [format and memory guidance](docs/DEPLOYMENT.md#images-to-pdf). A responsive sidebar and shared document panel keep your working file available across tools. Preview, select, rotate, remove and reorder pages, with bounded Undo/Redo and one download workflow. Light, dark and system themes are included.
+Convert JPEG, PNG, WebP, GIF and BMP images to PDF; merge, compress, extract, rotate, resize, crop and inspect/fix PDF version headers. High-resolution JPEG/PNG conversion preserves source pixels where technically feasible.
+
+A grouped responsive sidebar and accessible mobile drawer keep tools in one document workspace. The shared panel provides download/save, page selection, rotation, removal/reordering and bounded Undo/Redo. Lazy PDF thumbnails, bounded image previews and a zoom viewer keep preview resolution separate from export quality. English/Norwegian Bokmål and light/dark/system themes are included. See [workspace and memory limits](docs/WORKSPACE.md).
 
 ## Privacy-first architecture
 
@@ -23,7 +25,7 @@ Open [localhost:8080](http://localhost:8080). The default image is `ghcr.io/only
 
 ## Development
 
-Use Node 24 LTS:
+Use Node 24.13+ within 24.x LTS (current Docker builder: 24.22.2):
 
 ```sh
 cd app
@@ -44,6 +46,8 @@ For a local container build, run `docker compose -f app/compose.local.yaml up --
 - [Images to PDF: formats, sizing and limits](docs/DEPLOYMENT.md#images-to-pdf)
 - [Deployment and manual release guide](docs/DEPLOYMENT.md)
 - [Dependency maintenance and CI cost](docs/DEPENDENCIES.md)
+- [Current dependency decisions](docs/MODERNIZATION.md)
+- [Validation and platform limits](docs/VERIFICATION.md)
 - [Accessibility, VersionFix and branding](docs/ACCESSIBILITY.md)
 - [Verification and remaining manual checks](docs/VERIFICATION.md)
 - [Modernization audit](docs/AUDIT.md)

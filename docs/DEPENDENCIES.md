@@ -30,3 +30,5 @@ An alternative is to run all checks on every bot update; it offers immediate fee
 This task changes configuration and runs local checks only. It does not dispatch Actions, apply approval labels, change repository settings or consume Actions minutes.
 
 The [2026-10-31 modernization review](MODERNIZATION.md) records current pins, major-upgrade decisions, failed-check diagnoses and local validation. Node remains on 24 LTS; typings track 24.x. Nginx routine updates stay within the reviewed stable minor line; evaluate new stable lines manually so an odd-numbered mainline release cannot enter a grouped routine update.
+
+Current versions, registry/upstream evidence and explicit major-upgrade deferrals are recorded in [modernization](MODERNIZATION.md). Keep Tailwind and its Vite plugin on the same version; upgrade PDF.js and its locally bundled worker together. Routine maintenance uses `npm update` within reviewed pins/ranges, then verifies reproducibility with `npm ci`; never use `--force` or `--legacy-peer-deps` to hide conflicts.

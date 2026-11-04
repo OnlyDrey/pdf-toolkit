@@ -1,6 +1,6 @@
 # Cross-platform local build and release engine
 
-All release logic lives in `app/scripts/release.py` and uses Python 3.11+ standard-library modules. `release.ps1` and `release.sh` only find a supported interpreter and forward arguments/exit codes. Windows uses Windows PowerShell 5.1; Linux uses Bash. Node 24.13+ (24.x LTS), npm and installed application dependencies are required for frontend work. Install dependencies once with `cd app` then `npm ci`. Git is needed for release source/version metadata. Docker is optional for frontend work.
+All release logic lives in `app/scripts/release.py` and uses Python 3.11+ standard-library modules. `release.ps1` and `release.sh` only find a supported interpreter and forward arguments/exit codes. Windows uses Windows PowerShell 5.1; Linux uses Bash. Node 24.13+ (24.x LTS; current builder 24.22.2), npm and installed application dependencies are required for frontend work. Install dependencies once with `cd app` then `npm ci`. Git is needed for release source/version metadata. Docker is optional for frontend work.
 
 From the repository root:
 
@@ -106,6 +106,8 @@ The manual workflow still asks only for channel and base version. Beta pins curr
 After successful scans, the workflow uses the shared engine to package the pinned source with its reserved plan. The frontend bundle and checksum become GitHub Release assets only after the selected channel authorization/approval checks. Packaging records `skipped` for its own redundant test invocation: the preceding required CI job validated that exact SHA. The workflow verifies the bundle against the build job's trusted SHA256 output before uploading. The already scanned OCI image is published without rebuilding it. See [required Environments and publication permissions](DEPLOYMENT.md).
 
 CI adds standard-library engine tests on Ubuntu and Windows, with the Windows launcher invoked by **Windows PowerShell 5.1**. The aggregate `ready` check requires both platforms. Workflow policy tests require Python 3.11+ as well as Node 24. These jobs run only when CI is requested by repository triggers; implementing them does not dispatch Actions.
+
+Release result reporting is informational: it can complete successfully while validation, approval or publication has failed. Inspect the stage table and overall workflow conclusion; reserved tags are retained and no publication is implied.
 
 A supplied `--release-plan` is an internal packaging handoff, not evidence of approval. It must match the checkout SHA and valid channel/version; only the protected workflow authorizes registry/new-release publication. Local production confirmation authorizes artifact creation only.
 

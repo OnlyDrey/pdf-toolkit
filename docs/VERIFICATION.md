@@ -1,193 +1,24 @@
-# Verification and remaining manual checks
+# Verification and execution limits
 
-## High-resolution image support — 2026-11-03
+## Maintenance preparation — 2026-11-04
 
-The fix was completed on work and the clean code at `c8a86a6748c5a97b9080c60fb89366708c6b359b` passed one complete regression through the freshly built hardened Nginx container. This supersedes the original image-size thresholds documented in the earlier baseline below. No dependency versions changed, Actions were not dispatched and no images/releases/tags were published.
+Baseline: `361cd69c40fdf057f294f318025f771300e92203`, the source of [failed run 41778248924](https://github.com/OnlyDrey/pdf-toolkit/actions/runs/41778248924). Logs were read without rerunning Actions. Source validation, Docker/smoke/Trivy and both hosted engine platforms passed; browser contrast failed (57 passed, one failed, two flaky). Release readiness correctly blocked publication. The reporting job wrote a summary, then deliberately returned failure for skipped publication.
 
-Root cause: upload validation rejected files over 20 MiB, 40 MP or 16,384px per side, plus a 100 MP batch cap. Preparation then requested a full native bitmap before making a tiny thumbnail. pdf-lib's standard PNG path expands full-image pixel buffers even without a canvas. A 10800 × 14400 RGBA image would require 622,080,000 bytes for RGBA alone, before other decoding/embedding buffers.
+- `064b771`: atomic themes, stronger muted text, non-interpolating navigation/selection states, explicit palette/font synchronization, rendered-frame contrast regression and informational release reporting. Types/lint/format/build, 68 policy tests and 12 targeted Nginx browser cases passed, including three repeats per device of the previously flaky image accessibility case with retries disabled.
+- `310768d`: compatible package/transitive updates, Node 24.22.2/Alpine 3.24, refreshed stable Nginx digest, removal of unused Tabs, and matching Tailwind plugin major-update policy. Types/lint/format, 91 unit tests, Linux engine tests, production build and eight targeted Nginx cases passed. `npm ls --all` reports no peer-tree errors; npm audit reports zero vulnerabilities. actionlint 1.7.12 validates both workflows.
 
-JPEGs now use bounded metadata reads, small requested native thumbnails and unchanged JPEG embedding. Non-interlaced 8/16-bit gray/RGB/gray-alpha/RGBA PNGs validate CRCs, deflate, row counts and filters in a streaming worker. Non-alpha IDAT data is reused with PDF predictors; alpha is split and losslessly compressed into color/soft-mask streams. Compressed plans are cached and reused instead of decoding again during conversion, and released with removed/cleared images. PNG thumbnails sample at most 160px without a full-size bitmap/canvas. Detectable worker/allocation errors retain the previous document. PNG/JPEG density metadata controls Original Size, with 96 DPI fallback; physical-page compatibility is checked before embedding.
+The final complete regression runs after documentation is committed. Its results are recorded here after execution; targeted results above do not claim that final gate has already passed.
 
-| Validation                                       | Result                                                                                                                                                                        |
-| ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| TypeScript, ESLint, formatting, production build | Passed; existing large-bundle advisory remains                                                                                                                                |
-| Unit tests                                       | **81 passed**, including filter reconstruction, CRC/deflate/row failures, nonzero 16-bit color/alpha samples, cache reuse/release, DPI/page bounds and safe preview preflight |
-| Release-policy tests                             | **67 passed**; source, reservation, approval, scanning and channel controls unchanged                                                                                         |
-| Python release engine                            | **44 passed, 4 Windows-only skipped** (48 total)                                                                                                                              |
-| Browser tests                                    | **46 passed** on desktop/Pixel 7 emulation, including all existing workflows/axe checks and 8 high-resolution cases                                                           |
-| Docker                                           | Fresh AMD64 multi-stage build passed; healthy UID/GID 101, read-only filesystem, headers, routes, worker MIME and branding checks passed                                      |
-| Compose / Bash / docs                            | Compose config, launcher syntax, cleanup dry-run and 28 local documentation targets passed                                                                                    |
-| Dependency audit                                 | Zero vulnerabilities; package manifest and lockfile unchanged                                                                                                                 |
-| Packaging                                        | Manifest, all artifact checksums, frontend/outer ZIP integrity, image-worker inclusion and pinned Compose default independently verified                                      |
+## Reproducing the final gate
 
-The matching generated **10800 × 14400 RGBA PNG at 300 DPI** included over 21 MiB of valid ancillary data and was queued alongside a second **8000 × 6000 RGBA PNG**. Native bitmap decoding and full-size worker canvases were forbidden by test instrumentation. The PDF retained 10800 × 14400 image dimensions, alpha values and approximately 2592 × 3456pt Original Size; rotation/subsequent download preserved those dimensions. A **20000 × 2500 (50 MP) JPEG** embedded byte-for-byte, exceeded the former dimension/pixel thresholds, and retained its pixels on A4 after the expected Original Size compatibility error. Additional tests rendered a 16-bit transparent PNG and simulated a low-memory fallback budget.
+From the repository root, install using `npm ci --prefix app`. Build `docker build -t pdf-toolkit:verify app`, run `app/scripts/test-container.sh`, and validate `docker compose config --quiet`. A managed proxy may require the public CA BuildKit secret described in [deployment](DEPLOYMENT.md).
 
-Preparation of the two-image large-PNG queue, including file transfer, measured **18.591 seconds desktop / 17.468 seconds mobile emulation** during the full regression. The main thread heartbeat continued. These are environment-specific observations, not throughput guarantees. Per-row arrays and the small thumbnail replace the roughly 622 MB RGBA surface for the first image, but stream implementation queues, compressed cache and final PDF serialization still use memory; peak browser RSS was not measured. No conversion downscale or sample-precision reduction is applied.
+Serve that production image locally with the normal UID/read-only/tmpfs/capability constraints. Set `TEST_BASE_URL` to its local HTTP URL, then run `app/scripts/release.sh all --channel beta --version 1.1.0 --offline --non-interactive --output-dir /tmp/pdf-toolkit-verification`. This runs typecheck, lint, formatting, unit/policy/Python tests, production build, desktop/mobile browser regression and package/manifest/ZIP/checksum verification. The offline package version is provisional, creates no Git tag and must not be treated as a published release. Run `npm audit --prefix app --audit-level=high` separately for a fresh online audit.
 
-Actual limits are [documented separately](DEPLOYMENT.md#images-to-pdf): 100 queued images, the existing 100 MiB PDF/output and compressed-cache bound, a 64 MiB row-buffer budget, conservative estimated full-decoder budgets for other encodings, and a 14,400-default-point physical page bound without enlarged UserUnit pages. These are application/encoding/compatibility choices, not universal PDF pixel limits. Palette/interlaced 8-bit PNGs remain budgeted fallbacks; interlaced 16-bit PNGs are not silently converted to 8-bit. Large PDF previews may be skipped with a visible explanation before pixel decoding; editing and download remain available. Stream APIs and native codec/reader support vary, and browser/OS termination cannot always be caught. Unlimited image sizes are not promised. Windows, ARM64 runtime, other browser engines and real assistive-technology/browser-zoom checks were not executed here.
+Use Trivy 0.76.1 against the final runtime image with `--scanners vuln --severity HIGH,CRITICAL --exit-code 1`. Keep TLS verification enabled; a restricted environment may use the official GHCR vulnerability database repository. Validate workflows with actionlint and check local Markdown paths/anchors. No hosted Actions are needed for these checks.
 
-The local provisional offline package is `9.9.4-beta.1`, from the clean source above, with validation recorded as `passed-offline`; npm audit ran separately online. It is not a reserved public release. Its outer ZIP SHA256 is `69b3df2877ec67a333080ff5ff51ffbfdd409d219a6906641d3f3cb635d603b9`; the packaged worker is `assets/images.worker-B0KlBRq7.js`. The tested local container is `sha256:a6ab1cbf21cd5b0e0bc75961e179496421170e2574d284796314d86a8db31feb`.
+## Boundaries
 
-| Phase                                                              | Commit    |
-| ------------------------------------------------------------------ | --------- |
-| Streaming high-resolution engine, worker, preview safety and tests | `48dbd19` |
-| Resource/DPI documentation and precision assertions                | `ff884e2` |
-| Generated fixtures available in the production Docker context      | `c8a86a6` |
+This host has Linux AMD64 Docker and system Chromium. It cannot establish native Windows PowerShell 5.1 or ARM64 execution. Four Windows-specific Python checks are skipped locally; the failed hosted run's Windows checks passed for its older pinned source, not this maintenance revision. Docker manifests retain both release architectures. Hosted approval/publication is not tested by dispatching a release.
 
-Every commit contains `[skip ci]` and pushes target origin/work only. Remote main remained `69c6375a2d7bd3b27dd93bd49d32f668bcb6b171`, matching task start. No pull request or manual repository-setting change was made.
-
-## Images to PDF — 2026-11-03
-
-Implemented and validated on work, with no dependency changes, workflow dispatch, PR creation, image publication or release publication. The clean code at `51e6618c49184e20cec40dec4161bfcaf615dcd4` passed the complete shared-engine regression against the fresh production Nginx container. The final documentation commit records these results.
-
-- TypeScript, ESLint, formatting and production build passed; the existing large-bundle advisory remains.
-- **68 unit tests passed**, including 23 new image metadata/EXIF/resource-limit/layout/PDF-placement/transparency cases. All eight EXIF orientations are covered by bounded metadata and transform checks.
-- **67 release-policy tests passed** with existing approval, source, reservation, scan and channel-isolation controls preserved.
-- **44 Python engine tests passed; 4 Windows-only tests skipped** (48 total). Bash syntax and real launcher cleanup dry-run passed. No Windows/PowerShell execution is claimed.
-- **38 browser cases passed** (desktop and Pixel 7 emulation), including 14 new image cases. Actual native JPEG/PNG/WebP/GIF/BMP decoding, ordered page count/dimensions, clipping, alpha masks, JPEG byte preservation, rendered EXIF rotation/mirror pixels, keyboard sorting/removal, image drop/picker, corrupt/TIFF/oversized rejection, progress, duplicate requests and session replacement/failure/race handling were verified. Generated image PDFs continued through Rotate and direct session-to-Merge without a separate download path.
-- Axe reported no violations in **82 scans**: 64 all-tool/theme/language combinations, 10 existing state scans and 8 populated image-queue theme/language combinations. Existing tool/reflow tests include the eighth panel. The new queue was checked at 320px with 200% root text size. This is automated evidence, not WCAG certification.
-- Fresh local **AMD64 Docker build and hardened container checks passed**: UID/GID 101, read-only assets, health, security/cache headers, SPA routes, PDF worker MIME and branding assets. Compose configuration passed. Container image: `sha256:62bab44d558fce6b0bd2619b8154b089922dec98c49aefe8b0bf665ab10187c5`.
-- **npm audit: zero vulnerabilities**. The package manifest and lockfile are unchanged.
-- Captured/reviewed the eight device/theme/language combinations and two replacement dialogs. The new queue/settings follow the existing compact design; mobile settings stack and longer Norwegian navigation wraps without clipping. No visual baselines were silently replaced.
-- Local offline packaging produced provisional `9.9.3-beta.1` from clean code. The manifest, artifact hashes, frontend/outer ZIP integrity, inclusion of the image tool and version-pinned packaged Compose default passed independent verification. Outer ZIP SHA256: `a6f152fe7c1ef2fc40656b7e6808b9caaae495db07446da34dc3516d7e41ec07`. Validation is recorded as `passed-offline`; npm audit ran separately online. This is a local test artifact, not a reserved public release/version.
-
-Resource cleanup is verified by revocation of removed/cleared thumbnail URLs. Native bitmaps and canvases are released in finally blocks; pending upload thumbnails are released on failure/unmount. Queue IDs do not require secure-context-only crypto.randomUUID; the JPEG/session browser path passes with that API absent, supporting plain-HTTP LAN use.
-
-Limits remain explicit: TIFF is deferred after optional-decoder evaluation; GIF/animated WebP use the first frame. Encodings rely on a modern browser with createImageBitmap/canvas PNG support. Browser memory exhaustion can still terminate a tab, and embedding/serialization can pause briefly. JPEG metadata and visually cropped image data may remain embedded. Windows, ARM64 runtime, other browser engines, assistive technology and real browser-chrome zoom were not executed here. Existing release publication/approval/multi-platform settings remain unexecuted and unchanged.
-
-| Phase                                                       | Commit    |
-| ----------------------------------------------------------- | --------- |
-| Image engine and unit coverage                              | `a2c9aa9` |
-| UI, localization, session confirmation and browser coverage | `d60550e` |
-| Documentation and direct session-to-Merge                   | `682aac3` |
-| Plain-HTTP compatibility                                    | `51e6618` |
-
-Every commit contains `[skip ci]` and was pushed only to origin/work. Remote main at task start was `69c6375a2d7bd3b27dd93bd49d32f668bcb6b171`; Codex did not modify it.
-
-## VersionFix, branding, accessibility and beta channel — 2026-11-01
-
-The final code at `f84e097` passed the complete shared-engine regression locally with Node 24/Python 3.12 and system Chromium, targeting the freshly built hardened Nginx image. No Actions were dispatched and no images, tags or releases were published. The subsequent documentation commit records these results.
-
-| Check                                     | Result                                                                                                                                                                            |
-| ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| TypeScript, ESLint, Prettier              | Passed                                                                                                                                                                            |
-| Unit tests                                | 45 passed                                                                                                                                                                         |
-| Release-policy and mocked CLI integration | 67 passed; source pinning, reservations, permissions/approval and channel isolation retained                                                                                      |
-| Python engine                             | 44 passed, 4 Windows-only cases skipped (48 total)                                                                                                                                |
-| Browser workflows and accessibility       | 24 passed on desktop/Pixel 7; includes 56 tool/theme/language axe combinations and 10 additional state scans                                                                      |
-| Production build                          | Passed; existing large-bundle advisory remains                                                                                                                                    |
-| Fresh Docker multi-stage build            | Passed, native AMD64                                                                                                                                                              |
-| Hardened container                        | Healthy as UID/GID 101, read-only filesystem, security headers, SPA routes, PDF worker MIME and five branding assets passed                                                       |
-| npm audit                                 | Zero vulnerabilities                                                                                                                                                              |
-| Trivy runtime image                       | Zero HIGH/CRITICAL findings; official GHCR database, no suppression                                                                                                               |
-| Workflow/reference checks                 | actionlint passed all workflows; local documentation links and Bash syntax passed                                                                                                 |
-| Compose selection                         | Default/empty tag, latest-beta, stable/beta version pins, persistent .env, full-image override precedence, invalid reference rejection and preserved service settings passed      |
-| Local packaging                           | Complete provisional offline `9.9.2-beta.2`; manifest, inner artifact checksums, outer SHA256 sidecar, frontend/outer ZIP integrity and immutable packaged Compose default passed |
-| Cleanup                                   | Engine tests passed; real launcher dry-run planned owned generated artifacts without deletion                                                                                     |
-
-Packaging records clean source `f84e097c82aad74794ac25e095157c32d2df52e6` and `passed-offline`; the dependency audit was run separately online. This is a local validation artifact, not a reserved public version. Its outer ZIP SHA256 is `0cdcad4944c9d90e489e5ae2187a9c330ea0bcd32771189d959ef8deb7d4964b`. The failed earlier local attempt remains traceable and the allocator advanced the local beta number.
-
-The initial container regression correctly failed its two favicon cases because public files inherited private host permissions. Generated directories/files are now normalized to 0755/0644 in the builder, keeping root ownership and non-root execution. A new image build, targeted Nginx branding checks and the entire regression passed after the correction; no test or release gate was bypassed.
-
-Captured 72 before/after visual matrix states: desktop/mobile, both themes, both languages, empty state, every tool and the Resize menu. Representative captures were manually inspected for navigation, VersionFix, drop zones, toolbar/destructive hierarchy, Crop previews and menu layout. Four further production-container captures cover confirmation and keyboard focus. Expected differences are stronger boundaries/text, distinct inset tab focus with bottom-only selection, wrapping header/toolbar/actions at narrow widths, compact VersionFix details and a restrained readable Discard action. The navbar glyph preserves the original Lucide paths/proportions. No visual baselines were silently replaced and no unexplained differences remain in the inspected captures.
-
-Remaining limits: no actual Windows/PowerShell 5.1 run or ARM64 runtime verification was available. Reflow is tested at 320/640 CSS pixels and 200% root text size; real browser-chrome 200%/400% zoom, assistive technology and cross-browser/OS testing still need manual review. PDF previews are visual summaries. Header rewriting is not genuine compatibility conversion and can invalidate signatures; the reviewed conversion-engine options remain deferred. Automated axe success is not WCAG certification. External GHCR publication, GitHub approval behavior and multi-platform release builds remain intentionally unexecuted; existing production Environment/owner settings in the deployment guide still apply. Beta needs no Environment or new repository setting for latest-beta.
-
-| Phase                                     | Commit    |
-| ----------------------------------------- | --------- |
-| Audit and plan                            | `e0dc138` |
-| Bidirectional header-only VersionFix      | `4d08e45` |
-| Canonical logo and favicon assets         | `e4e21e1` |
-| Shared keyboard/focus/forms/feedback      | `ce3dcc2` |
-| Axe coverage and follow-up remediation    | `506d130` |
-| latest-beta and Compose channel selection | `75330be` |
-| Nginx asset permissions                   | `f84e097` |
-
-All phase commits contain `[skip ci]` and were pushed only to origin/work. Remote main remained `8066d72965f06af3466bf2fbf13f60d31106a7ed`, matching the starting ref.
-
-## Earlier baseline
-
-Validation was performed locally on 2026-10-31 with Node 24 and system Chromium. GitHub Actions was not manually dispatched and no release/image was published by this work.
-
-- TypeScript, ESLint and Prettier checks pass.
-- The 37 unit tests exercise PDF validation, encrypted input rejection, complete header matching, fixed-width byte edits, downgrade/catalog-version checks, serialized rotation/resize/crop geometry, translation-key parity, page ranges and paper sizes.
-- The 10 Playwright cases (five workflows on each device profile) cover desktop and Pixel 7 layouts, real downloads and PDF re-parsing, merge/extract/rotate/resize/crop sessions, invalid/encrypted files, compression retention, version limitations, repeated operations, invalid range feedback, theme/language switching and keyboard file selection.
-- Browser tests target the real read-only Nginx container with its production CSP. They exposed and verified a fix for `.mjs` worker MIME types, which Vite preview alone did not catch. The bundled PDF.js worker is requested locally and previews render successfully.
-- Docker checks include startup, `/healthz`, non-root UID/GID, read-only static assets, SPA routing, Nginx configuration, module-worker MIME and HTTP security/cache headers.
-- npm audit reports zero vulnerabilities after patched PostCSS and a tooling-only minimatch override.
-- Trivy 0.76.1 scans the runtime image using its official GHCR database source. The initial old-registry Nginx base failed with inherited HIGH/CRITICAL OS-library findings. The current stable `nginx/nginx-unprivileged:1.30.6-alpine-slim` base replaces it, has 21 OS packages rather than 70, and passes the HIGH/CRITICAL gate. No advisory is suppressed.
-- actionlint 1.7.12 validates workflow syntax and expressions. Action commits and base-image manifest digests are pinned.
-
-## External and manual validation
-
-GitHub CI, GHCR publishing, release creation, approval protection behavior, SBOM/provenance upload and multi-platform release builds require actual external runs. They are configured but not claimed as executed locally. Base-image manifests contain both amd64 and arm64; native amd64 container startup is verified, arm64 runtime remains a manual deployment check.
-
-Configure protected branches/version tags and required reviewers on beta/production environments before any release. The workflow checks for configured reviewers before publishing. Approve a real beta tag, inspect both architecture scan results and attestations, deploy by digest on amd64 and arm64 hosts, then approve a stable tag on the same commit to verify artifact reuse. Never use an unpromoted SHA candidate merely because it exists.
-
-Manually validate representative large/scanned PDFs, complex forms, annotations, signatures, unusual fonts, rotated or nonzero-origin page boxes, and reader-specific behavior in Chromium, Firefox and Safari. Browser operations are memory-bound and pdf-lib mutations may block the UI. Previews are bounded, but this is not a complete worker-based processing rewrite. Crop does not redact; header edits do not establish PDF feature compatibility. Preview font/advanced rendering behavior depends on browser and PDF.js support. Production builds still report a large JavaScript bundle warning; the existing SPA architecture is retained.
-
-The environment blocks Playwright's browser-download host, so local browser tests use installed system Chromium. CI installs Playwright's matching Chromium through its standard setup command. The default Trivy DB mirror is blocked locally; the official allowed GHCR source was used instead. Docker's inherited outbound proxy is explicitly bypassed only for localhost health probes.
-
-## Structure cleanup regression
-
-The repository-only refactor moved application code and build assets into `app/`, renamed production deployment to root `compose.yaml`, and updated CI, release, cache, Dependabot and documentation paths. Application sources, tests, scripts, lockfile and build configurations were checked against the pre-refactor commit: 53 files are byte-identical. Dependency versions and PDF/UI behavior did not change.
-
-TypeScript, ESLint, Prettier, 37 unit tests, the production build, actionlint, workflow-path/tag-only publication assertions, local documentation links, and stable/beta/version/digest Compose configuration checks passed. All 10 desktop/mobile Playwright cases passed through the root production Compose definition. Container checks passed for startup, health, UID 101, read-only assets, security headers, SPA routing and worker MIME types.
-
-A fresh build with `docker build -t pdf-toolkit:structure app` was attempted but blocked while fetching the unchanged pinned Node base: Docker Hub registry and authentication endpoints returned HTTP 503. A retry also failed. To finish runtime validation without changing the production Dockerfile or dependency versions, a temporary local image used the retained, previously validated runtime image plus freshly compiled relocated assets and Nginx configuration. This verifies the runtime and deployment paths; it does not establish a successful fresh multi-stage build. Retry the full command when Docker Hub recovers. ARM64 runtime and external CI remain unverified by this cleanup.
-
-Existing dependencies were reused without another installation. No workflow was manually dispatched and no image, package, release or PR was published. The cleanup commit contains `[skip ci]`; only `origin/work` is updated, and `main` is left untouched. See [AGENTS.md](../AGENTS.md) for persistent Git rules.
-
-## Earlier manual release controls and dependency optimization (superseded UX)
-
-Local validation of the manual-release change passed 27 release-policy tests, the existing 37 unit tests and 10 desktop/mobile browser cases, TypeScript, ESLint, Prettier, production build and actionlint. Browser regression for this workflow-only change used Vite preview; production Docker assets and application behavior were not modified.
-
-YAML/contract checks verified exact-SHA forwarding to both reusable CI jobs and image builds, forced full release validation, Environment-gated write permissions, two-platform build/scan configuration, tag reservation after scans, pinned Actions references and local documentation links. The actual CI condition was checked against normal PRs, unapproved/approved Dependabot PRs and forced release validation. The aggregate `ready` job always evaluates both job results, so a skipped Docker/browser job cannot itself establish merge readiness.
-
-Release-policy tests use local GitHub API fixtures for branch ancestry, annotated tags, version collisions, denied API access and absent/bypassable approval configuration. They do not establish that repository Environments, tag rules, GHCR permissions or the default-branch dispatch UI are already configured. Administrators must configure those settings and require `ready` before relying on the gates. No workflow was dispatched, no approval label was applied, no dependency PR was merged, and no image/package/release was published. No GitHub Actions minutes were consumed by this task; publication remains untested until a separately authorized run.
-
-## Simplified two-input release workflow
-
-The current manual form has only channel and base version. Release policy tests use local GitHub API fixtures to verify that Beta resolves work HEAD and Production resolves main HEAD regardless of the workflow selector, that beta numbering includes all tag pages and uses exact integer arithmetic, and that concurrency conflicts never overwrite a version. They cover stale source HEADs, reserved-tag changes, existing stable tags/releases, and missing or bypassable Environment protection.
-
-The release archive is built/scanned before Environment approval and is uploaded unchanged afterward. Tests verify both required OCI platforms, source/version labels, preserved multi-platform digest and rejection of unrelated or tampered images. Offline Trivy smoke checks with synthetic empty OCI images confirmed that the generated single-platform layouts select amd64 and arm64 separately; this is a scan-input compatibility check, not a scan of a real newly published application image.
-
-Local validation passed 38 release-policy tests, the existing 37 application unit tests, 10 desktop/mobile browser tests, type/lint/format checks, the production build, actionlint, YAML/permissions/source/concurrency/artifact-order contracts and documentation links. Browser regression used Vite preview. Application dependencies, Docker assets and the reusable CI workflow are unchanged.
-
-No Actions workflow, actual release reservation, image upload or GitHub Release creation was executed. The default-branch UI, GitHub Environment approvals, tag rules, real multi-platform archive export, Skopeo/GHCR digest preservation and release metadata upload still require a separately authorized end-to-end run. Administrators must promote the workflow to the default branch, allow unique tag creation, configure both protected Environments for trusted workflow refs independently of application sources, and grant the publication token repository-linked package access. Artifact retention and source-HEAD stability apply as documented in the deployment guide. No GitHub Actions minutes were consumed by this task.
-
-## Cross-platform local build and release system
-
-The shared Python 3.11+ engine passes 32 standard-library tests, with the Windows-only case skipped on Linux. They cover version allocation, offline operation, production confirmation, argument/exit-code forwarding, source/plan mismatches, atomic local slots, collision preservation, build reuse/source drift, safe cleanup, ZIP/checksum integrity, Docker platform selection, OCI graph/digest validation, failure traceability and authorized asset-upload constraints. The existing 38 release-policy tests also pass using the Python version calculator. No application dependencies, UI, localization or PDF processing behavior changed.
-
-Real frontend packaging produced an intact ZIP, pinned deployment Compose, release notes, manifest, payload checksums and outer ZIP checksum. The existing production multi-stage Dockerfile successfully built on AMD64; the engine verified UID 101, revision/version labels, read-only container startup, healthcheck and served frontend. This supersedes the earlier Docker Hub outage limitation for a native build. Root and local Compose configuration, actionlint and local documentation links are checked separately.
-
-The final complete regression uses the engine's `all` action: TypeScript, ESLint, Prettier, 37 application unit tests, 38 release-policy tests, engine tests, production Vite build, 10 browser cases and release packaging. Offline execution explicitly records `passed-offline` and skips a fresh network audit. Existing Chromium/dependencies are reused. A separate final online `npm audit --audit-level=high` reports zero vulnerabilities.
-
-This Linux host cannot execute Windows PowerShell 5.1. CI now includes Ubuntu/Windows engine tests and a real classic PowerShell invocation, but those jobs have not been dispatched. The active local Buildx builder advertises only AMD64 and rejects ARM64 requests. It also reports that its classic Docker driver cannot export Docker archives; archive integrity/platform behavior is exercised with local fixtures. OCI/multi-platform export needs a capable builder and remains an external validation requirement. Production image/new-release publication still requires the documented protected Environments and explicit authorization; optional local publication only uploads verified assets to an already approved release.
-
-All implementation phase commits contain `[skip ci]` and update only `origin/work`. No Actions run, Git tag, image push, release publication or pull request is created by this task.
-
-## Dependency modernization regression
-
-See the [modernization report](MODERNIZATION.md) for package/Action/base-image versions, TypeScript 7 deferral, Dependabot failure diagnoses and validation evidence. The final local regression passes 40 unit tests, 38 policy tests, 32 engine tests (one Windows-only skip), 10 browser cases through hardened production Nginx, production build, formatting/types/lint, online dependency audit and release packaging/checksums. All 72 captured desktop/mobile/theme/language/tool visual states match before/after. Docker builds and health checks pass; local/container CSS hashes match and Trivy finds zero HIGH/CRITICAL runtime vulnerabilities. Native Windows/ARM64 and hosted release publication remain external checks.
-
-## Channel-specific approval policy — 2026-11-01
-
-The Beta Environment 404 fix replaces the earlier requirement for protected Environments on both channels. Beta never queries or attaches an Environment. Production defaults to configured required reviewers; an explicitly enabled owner-operated mode requires owner initiation and a separate post-scan rerun confirmation. Existing reviewer/deployment rules stay enforced, and ambiguous 404/listing/authorization failures never become fallback approval. See the [current release guide](DEPLOYMENT.md#owner-operated-production-approval).
-
-Local validation passes 67 release-policy/integration tests, including the actual CLI with a fake GitHub transport, Environment absence/access cases, owner identities and build-attempt history, immutable-plan tampering and 1,536 publication-gate status combinations. The complete regression also passes TypeScript, ESLint, formatting, 40 application unit tests, 32 engine tests (one Windows-only skip), the production build, 10 desktop/mobile browser cases and local packaging/ZIP/manifest/SHA256 checks. actionlint validates YAML/expressions; documentation links are checked locally. Offline execution explicitly skips the network dependency audit. No dependencies, Docker assets, UI or translation behavior changed.
-
-No workflow is dispatched, no approval/settings are changed and no image, Git tag or release is published during implementation. Live GitHub Environment enforcement and owner-confirmation rerun/artifact integration require a separately authorized external run; local tests do not claim those were executed. Failed runs using older policy must not be resumed as though their policy changed.
-
-## Windows path-validation hotfix — 2026-11-01
-
-Read-only inspection of [beta run #2](https://github.com/OnlyDrey/pdf-toolkit/actions/runs/41282501433) confirms 24 Windows engine errors and one PowerShell forwarding-test failure. The launcher correctly returned the engine's exit code 5; the shared cause was `guarded_path()` comparing an absolute path's spelling with its resolved spelling and labeling any difference a symlink/junction. Windows canonicalization can expand the legitimate 8.3 ancestor `RUNNER~1`. A name change alone does not prove a reparse point, and the old guard did not inspect metadata.
-
-The fix canonicalizes selected roots once, explicitly checks symlink/reparse metadata (compatible with Python 3.11), uses canonical containment and checks entries before tree traversal. Selected roots may have inherited parent aliases; linked root leaves and generated descendants remain rejected. Cleanup stays inside the approved application/output directories, preserves tracked/unknown files and revalidates after confirmation. Fingerprints normalize directory inputs too, so short and long spellings do not produce incompatible relative paths. The PowerShell/Bash launchers remain thin and unchanged.
-
-Linux validation passes 44 of 48 engine tests; four Windows-only cases are skipped. New coverage includes ordinary temporary directories/spaces, simulated canonical alias expansion, Windows reparse metadata, real Linux symlinks, inherited parent aliases, traversal/sibling-prefix rejection, external-output cleanup boundaries, root/target substitution and tracked-file preservation. Native Windows cases cover `GetShortPathNameW`, actual junctions (including descendants and inherited parents), bounded cleanup and PowerShell 5.1 forwarding of spaced source/output arguments. Junctions use unprivileged creation; symlink/8.3 capability skips are explicit. This Linux host has no native Windows runner or PowerShell 5.1, so Windows success is **not** claimed.
-
-The complete local regression passes typechecking, ESLint, formatting, 40 application unit tests, 67 release-policy/CLI integration tests, the engine suite, production build, 10 desktop/mobile browser cases and frontend/release packaging with independent ZIP/manifest/SHA256 verification. An actual Bash/CLI cleanup in an isolated fixture with spaced paths and an inherited parent alias removes only generated/owned artifacts and preserves outside/unknown files. Offline mode skips the dependency network audit. actionlint and CI contract checks confirm the Ubuntu/Windows matrix and required release readiness gate are unchanged; no failing check is bypassed.
-
-The reservation `v0.0.2-beta.1` remains at annotated object `240483fff407164537792a1efaf880c0edb4029f`, pointing to `01567d6eb8a8f6c93085b14e1a16644a2ac49045`. At inspection time the next available beta is `v0.0.2-beta.2`. Follow the [recovery instructions](DEPLOYMENT.md#recovery-from-the-windows-validation-failure-run-2): a separately authorized new dispatch using the fixed `work` policy and unchanged base `0.0.2`, with automatic numbering and all validation/scanning gates intact. No tag deletion/reuse, workflow dispatch or publication is performed by this hotfix.
+Axe/keyboard/reflow checks cover English/Norwegian, light/dark, mobile/desktop, 320/640 CSS pixels and 200% root text size. They are not manual screen-reader, browser-chrome 400% zoom, every-browser or WCAG certification claims. Large-raster previews have deliberate fallbacks; cache/history limits are not peak-heap guarantees. The existing Vite large-chunk advisory remains. See [workspace limits](WORKSPACE.md) and [accessibility](ACCESSIBILITY.md).
