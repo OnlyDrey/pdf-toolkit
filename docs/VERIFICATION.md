@@ -49,3 +49,16 @@ Use Trivy 0.76.1 against the final runtime image with `--scanners vuln --severit
 This host has Linux AMD64 Docker and system Chromium. It cannot establish native Windows PowerShell 5.1 or ARM64 execution. Four Windows-specific Python checks are skipped locally; the failed hosted run's Windows checks passed for its older pinned source, not this maintenance revision. Docker manifests retain both release architectures. Hosted approval/publication is not tested by dispatching a release.
 
 Axe/keyboard/reflow checks cover English/Norwegian, light/dark, mobile/desktop, 320/640 CSS pixels and 200% root text size. They are not manual screen-reader, browser-chrome 400% zoom, every-browser or WCAG certification claims. Large-raster previews have deliberate fallbacks; cache/history limits are not peak-heap guarantees. The existing Vite large-chunk advisory remains. See [workspace limits](WORKSPACE.md) and [accessibility](ACCESSIBILITY.md).
+
+## Compression measurements
+
+Measured by `app/tests/browser/compression.spec.ts` in headless Chromium (synthetic, deterministic fixtures; not a benchmark of real-world scans, which vary widely):
+
+| Fixture                                                                     | Mode     | Input (bytes) | Output (bytes) | Reduction |
+| --------------------------------------------------------------------------- | -------- | ------------- | -------------- | --------- |
+| 2 pages, one 1800 × 2400 Flate RGB gradient-plus-noise raster               | Lossless | 11,885,161    | 11,884,513     | 0.005%    |
+| same                                                                        | Balanced | 11,885,161    | 365,206        | 96.9%     |
+| same                                                                        | Maximum  | 11,885,161    | 62,560         | 99.5%     |
+| 2480 × 3508 JPEG of random colour blocks, with form field, link and outline | Balanced | 1,466,518     | 774,773        | 47.2%     |
+
+Lossless is expected to gain little on image-dominated files. The fixtures show the engine works on both Flate and JPEG sources; they do not predict the reduction for a given user document (the reported 33 MB to 3 MB case was not available for testing). Unit tests (`pdf-compress.test.ts`) cover the mode strategies, duplicate sharing, unreachable-object removal, PNG-predictor decoding, no-reduction, signed and cancelled paths. The Docker build, container smoke test and Nginx browser run were not executed: no Docker daemon is available here. `npm run test:release` needs Node 24 and could not run on this Node 22 host (Python release tests ran: 48 passed, 4 skipped).

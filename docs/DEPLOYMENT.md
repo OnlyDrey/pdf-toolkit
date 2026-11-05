@@ -169,7 +169,7 @@ Documents are processed in browser memory, with no upload API or telemetry. Only
 
 Inputs are limited to 100 MiB per document or combined merge input. Memory use can be several times the source size, and pdf-lib mutations may pause the UI. Thumbnail grids share one PDF.js document/worker per file; only the active tool renders previews, with at most 12 Extract thumbnails and bounded canvas height.
 
-Malformed, empty, unsupported and encrypted PDFs report errors. Decrypt a copy locally first. Complex forms, annotations, unusual fonts and signatures need manual reader checks; modifications can invalidate digital signatures. Structural compression does not reduce image quality and may yield little improvement. It reports the actual candidate size and retains the original bytes when the rewrite is not smaller.
+Malformed, empty, unsupported and encrypted PDFs report errors. Decrypt a copy locally first. Complex forms, annotations, unusual fonts and signatures need manual reader checks; modifications can invalidate digital signatures. Compression has three modes (see [workspace](WORKSPACE.md#pdf-compression)): Lossless never changes pixels and may yield little; Balanced and Maximum recompress and downsample images and are lossy for images. Signed PDFs are left unchanged. The actual output size is reported and the original is retained when no smaller file results.
 
 Crop changes the visible crop box in unrotated PDF coordinates; hidden content stays in the file. **Crop is not redaction.** Version Fix changes only the header's three version characters, validates the PDF and allows higher or lower header values while preserving catalog overrides and every other byte. It does not convert features or establish reader compatibility or PDF/A conformance.
 

@@ -1,6 +1,6 @@
 # Accessibility and appearance
 
-The responsive workspace uses one grouped button navigation with localized labels, `aria-current`, visible keyboard focus and Lucide icons. Desktop collapse retains accessible names and tooltips. The sticky topbar keeps the hamburger at the far right on small screens. The native right-side mobile drawer traps/restores focus, locks background scrolling and closes on Escape, backdrop or tool selection. There is no horizontal tab strip.
+The responsive workspace uses one grouped button navigation with localized labels, `aria-current`, visible keyboard focus and Lucide icons. Desktop collapse retains accessible names and tooltips. The sticky topbar keeps the hamburger at the far right on small screens. The full-screen mobile menu sits below the unchanged navbar, makes the workspace inert, locks background scrolling, moves focus to the active tool and closes on Escape, the X toggle or tool selection, restoring focus to the toggle. Theme and language are `menuitemradio` dropdowns with arrow-key navigation. There is no horizontal tab strip.
 
 All eight tools, the document panel, image queue, virtual page grid, modal preview, settings and status/error/confirmation states are covered in English and Norwegian Bokmål. Controls derive names from visible content, filenames wrap, actions stack/wrap on narrow screens, and destructive confirmations initially focus Cancel. Disabled operations use real disabled/aria-disabled states; conflicting document edits are locked.
 
