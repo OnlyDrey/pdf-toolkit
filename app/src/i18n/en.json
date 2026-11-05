@@ -92,13 +92,41 @@
     },
     "compress": {
       "title": "Compress PDF",
-      "description": "Reduce file size by optimising the internal PDF structure.",
-      "note": "Uses structural compression (object streams). Image quality is not changed.",
-      "action": "Compress and download",
+      "description": "Reduce file size locally in your browser. Choose a mode, then compress.",
+      "action": "Compress PDF",
       "originalSize": "Original size",
       "compressedSize": "Compressed size",
       "reduction": "Reduction",
-      "noReduction": "The rewrite did not reduce size. The original file was kept in the session."
+      "noReduction": "No smaller file could be produced in this mode. Your document is unchanged.",
+      "mode": "Compression mode",
+      "default": "(default)",
+      "failed": "Compression failed. Your document is unchanged. Try another mode.",
+      "applied": "Compressed. The working document was updated.",
+      "imageSummary": "{{optimized}} of {{found}} images recompressed",
+      "signed": "This PDF contains a digital signature. Compressing it would invalidate the signature, so it was left unchanged.",
+      "modes": {
+        "lossless": {
+          "name": "Lossless",
+          "description": "Keeps every pixel. Optimizes structure only.",
+          "note": "Lossless removes unused objects, shares duplicate images and compresses raw streams. Images are never changed, so scans and photos often shrink little."
+        },
+        "balanced": {
+          "name": "Balanced",
+          "description": "Good quality, smaller files.",
+          "note": "Balanced limits images to about 150 dpi and recompresses suitable photos as JPEG. Text and vector graphics are not rasterized."
+        },
+        "maximum": {
+          "name": "Maximum",
+          "description": "Smallest file, lower image quality.",
+          "note": "Maximum limits images to about 100 dpi with stronger JPEG compression. Fine detail in photos and scans can be lost; text and vector graphics stay sharp."
+        }
+      },
+      "phase": {
+        "analyzing": "Analyzing document…",
+        "images": "Optimizing images ({{done}} of {{total}})…",
+        "structure": "Optimizing structure…",
+        "saving": "Writing result…"
+      }
     },
     "extract": {
       "title": "Extract Pages",

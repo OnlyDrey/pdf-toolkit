@@ -126,7 +126,9 @@ test('axe covers validation feedback, processing, dropdowns and discard dialog',
       mimeType: 'application/pdf',
       buffer: Buffer.from('invalid'),
     })
-  await active(page).getByRole('button', { name: 'Apply', exact: true }).click()
+  await active(page)
+    .getByRole('button', { name: /^(Compress PDF|Komprimer PDF)$/ })
+    .click()
   await expect(active(page).getByRole('alert')).toBeVisible()
   await scan(page, 'invalid-pdf')
   await page.addInitScript(() => {
@@ -139,7 +141,9 @@ test('axe covers validation feedback, processing, dropdowns and discard dialog',
   await setLanguage(page, 'en')
   await navigate(page, 'compress')
   await active(page).locator('input[type=file]').setInputFiles(input)
-  await active(page).getByRole('button', { name: 'Apply', exact: true }).click()
+  await active(page)
+    .getByRole('button', { name: /^(Compress PDF|Komprimer PDF)$/ })
+    .click()
   await expect(
     active(page).getByText('Processing...', { exact: true }).first(),
   ).toBeVisible()

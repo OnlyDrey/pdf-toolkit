@@ -112,7 +112,7 @@ test('invalid and encrypted PDFs give useful errors', async ({ page }) => {
     buffer: Buffer.from('invalid'),
   })
   await visibleTool(page)
-    .getByRole('button', { name: 'Apply', exact: true })
+    .getByRole('button', { name: 'Compress PDF', exact: true })
     .click()
   await expect(visibleTool(page).getByRole('alert')).toContainText('malformed')
   const doc = await PDFDocument.create()
@@ -133,7 +133,7 @@ test('invalid and encrypted PDFs give useful errors', async ({ page }) => {
     buffer: Buffer.from(await doc.save({ useObjectStreams: false })),
   })
   await visibleTool(page)
-    .getByRole('button', { name: 'Apply', exact: true })
+    .getByRole('button', { name: 'Compress PDF', exact: true })
     .click()
   await expect(visibleTool(page).getByRole('alert')).toContainText('Encrypted')
 })
@@ -142,9 +142,11 @@ test('compression preserves a non-improving original and header edits explain li
 }) => {
   await navigate(page, 'compress')
   await upload(page, await pdf('optimized.pdf'))
-  await apply(page)
+  await visibleTool(page)
+    .getByRole('button', { name: 'Compress PDF', exact: true })
+    .click()
   await expect(
-    visibleTool(page).getByText('The rewrite did not reduce size.', {
+    visibleTool(page).getByText('No smaller file could be produced', {
       exact: false,
     }),
   ).toBeVisible()
@@ -154,6 +156,8 @@ test('compression preserves a non-improving original and header edits explain li
       exact: false,
     }),
   ).toBeVisible()
+  // The unchanged compression result was not committed, so the header tool needs its own file.
+  await upload(page, await pdf('optimized.pdf'))
   await apply(page)
   expect((await result(page)).getPageCount()).toBe(2)
 })

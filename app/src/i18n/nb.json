@@ -92,13 +92,41 @@
     },
     "compress": {
       "title": "Komprimer PDF",
-      "description": "Reduser filstorrelsen ved å optimalisere den interne PDF-strukturen.",
-      "note": "Bruker strukturell komprimering. Bildekvaliteten endres ikke.",
-      "action": "Komprimer og last ned",
+      "description": "Reduser filstørrelsen lokalt i nettleseren. Velg modus og komprimer.",
+      "action": "Komprimer PDF",
       "originalSize": "Opprinnelig storrelse",
       "compressedSize": "Komprimert storrelse",
       "reduction": "Reduksjon",
-      "noReduction": "Omskrivingen reduserte ikke størrelsen. Originalfilen ble beholdt i økten."
+      "noReduction": "Ingen mindre fil kunne lages i denne modusen. Dokumentet er uendret.",
+      "mode": "Komprimeringsmodus",
+      "default": "(standard)",
+      "failed": "Komprimeringen mislyktes. Dokumentet er uendret. Prøv en annen modus.",
+      "applied": "Komprimert. Arbeidsdokumentet er oppdatert.",
+      "imageSummary": "{{optimized}} av {{found}} bilder rekomprimert",
+      "signed": "Denne PDF-en har en digital signatur. Komprimering ville ugyldiggjort signaturen, så filen er uendret.",
+      "modes": {
+        "lossless": {
+          "name": "Tapfri",
+          "description": "Beholder hver piksel. Optimaliserer bare strukturen.",
+          "note": "Tapfri fjerner ubrukte objekter, deler like bilder og komprimerer rå strømmer. Bilder endres aldri, så skannede dokumenter og bilder blir ofte lite mindre."
+        },
+        "balanced": {
+          "name": "Balansert",
+          "description": "God kvalitet, mindre filer.",
+          "note": "Balansert begrenser bilder til omtrent 150 dpi og rekomprimerer egnede foto som JPEG. Tekst og vektorgrafikk gjøres ikke om til bilder."
+        },
+        "maximum": {
+          "name": "Maksimal",
+          "description": "Minste fil, lavere bildekvalitet.",
+          "note": "Maksimal begrenser bilder til omtrent 100 dpi med sterkere JPEG-komprimering. Fine detaljer i foto og skanninger kan gå tapt; tekst og vektorgrafikk forblir skarpe."
+        }
+      },
+      "phase": {
+        "analyzing": "Analyserer dokumentet…",
+        "images": "Optimaliserer bilder ({{done}} av {{total}})…",
+        "structure": "Optimaliserer struktur…",
+        "saving": "Skriver resultat…"
+      }
     },
     "extract": {
       "title": "Hent ut sider",
