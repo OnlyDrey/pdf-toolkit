@@ -1,7 +1,7 @@
 import { test, expect, type Page } from '@playwright/test'
 import { PDFDocument } from 'pdf-lib'
 import AxeBuilder from '@axe-core/playwright'
-import { navigate, docAction } from './navigation'
+import { docAction, navigate, setLanguage } from './navigation'
 const panel = (page: Page) =>
   page.getByRole('complementary', { name: 'Working on' })
 async function pdf(name = 'workspace.pdf') {
@@ -25,7 +25,7 @@ async function output(page: Page) {
 }
 test.beforeEach(async ({ page }) => {
   await page.goto('/')
-  await page.getByRole('button', { name: 'EN English', exact: true }).click()
+  await setLanguage(page, 'en')
   await panel(page)
     .locator('input[type=file]')
     .setInputFiles(await pdf())

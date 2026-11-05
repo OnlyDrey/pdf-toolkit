@@ -1,5 +1,5 @@
 import { samplePreview } from './pixels'
-import { navigate } from './navigation'
+import { navigate, setLanguage } from './navigation'
 import { test, expect, type Page } from '@playwright/test'
 import {
   PDFDocument,
@@ -34,7 +34,7 @@ function images(doc: PDFDocument) {
 }
 test.beforeEach(async ({ page }) => {
   await page.goto('/')
-  await page.getByRole('button', { name: 'EN English', exact: true }).click()
+  await setLanguage(page, 'en')
   await navigate(page, 'images')
 })
 test('10800 × 14400 RGBA PNG above 20 MiB and multiple large images keep all pixels and 300 DPI', async ({

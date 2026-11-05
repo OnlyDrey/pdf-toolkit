@@ -1,11 +1,11 @@
 import { PDFDocument } from 'pdf-lib'
 import { test, expect } from '@playwright/test'
-import { navigate, showTools } from './navigation'
+import { navigate, setLanguage, setTheme, showTools } from './navigation'
 test('responsive sidebar preserves tool controls and offers a modal mobile drawer', async ({
   page,
 }) => {
   await page.goto('/')
-  await page.getByRole('button', { name: 'EN English', exact: true }).click()
+  await setLanguage(page, 'en')
   await navigate(page, 'rotate')
   const pdf = await PDFDocument.create()
   pdf.addPage([200, 400])
@@ -41,24 +41,39 @@ test('responsive sidebar preserves tool controls and offers a modal mobile drawe
       .getByRole('button', { name: 'Expand sidebar', exact: true })
       .click()
   } else {
+    const bar = page.locator('.workspace-topbar')
+    const before = await bar.boundingBox()
     await showTools(page)
-    await expect(page.getByRole('dialog')).toBeVisible()
+    const nav = page.locator('#workspace-nav')
+    await expect(nav).toBeVisible()
     await expect(page.locator('body')).toHaveCSS('overflow', 'hidden')
-    await page.keyboard.press('Shift+Tab')
-    await expect(page.locator('#tool-tab-versionFix')).toBeFocused()
-    await page.keyboard.press('Tab')
-    await expect(
-      page.getByRole('button', { name: 'Close tools', exact: true }),
-    ).toBeFocused()
+    // The navbar is unchanged; only the toggle icon changes. No second logo.
+    expect(await bar.boundingBox()).toEqual(before)
+    await expect(page.locator('#workspace-menu')).toHaveAttribute(
+      'aria-label',
+      'Close tools',
+    )
+    await expect(nav.getByText('PDF Toolkit')).toHaveCount(0)
+    const top = (await nav.boundingBox())!
+    expect(top.y).toBeGreaterThanOrEqual(before!.y + before!.height - 1)
+    expect(top.y + top.height).toBeGreaterThanOrEqual(
+      page.viewportSize()!.height - 1,
+    )
+    await expect(page.locator('#tool-tab-rotate')).toHaveAttribute(
+      'aria-current',
+      'page',
+    )
     await page.keyboard.press('Escape')
     await expect(page.locator('#workspace-menu')).toBeFocused()
-    await expect(page.getByRole('dialog')).not.toBeVisible()
-    await showTools(page)
-    await page.mouse.click(2, 300)
-    await expect(page.getByRole('dialog')).not.toBeVisible()
+    await expect(nav).not.toBeVisible()
     await showTools(page)
     await page.getByRole('button', { name: 'Close tools', exact: true }).click()
-    await expect(page.locator('#workspace-menu')).toBeFocused()
+    await expect(nav).not.toBeVisible()
+    await expect(page.locator('#workspace-menu')).toHaveAttribute(
+      'aria-label',
+      'Open tools',
+    )
+    await expect(rotation).toContainText('180 degrees')
   }
   await page.setViewportSize({ width: 320, height: 800 })
   expect(
@@ -84,8 +99,38 @@ test('topbar stays sticky and the hamburger is the rightmost control', async ({
     const width = page.viewportSize()!.width
     expect(box.x + box.width).toBeGreaterThan(width - 24)
     const theme = (await page
-      .getByRole('button', { name: 'Light', exact: true })
+      .getByRole('button', { name: 'Theme', exact: true })
       .boundingBox())!
     expect(theme.x).toBeLessThan(box.x)
   }
+})
+
+test('theme and language dropdowns show the selection and persist it', async ({
+  page,
+}) => {
+  await page.goto('/')
+  await setLanguage(page, 'en')
+  await page.getByRole('button', { name: 'Theme', exact: true }).click()
+  await expect(
+    page.getByRole('menuitemradio', { name: 'System', exact: true }),
+  ).toHaveAttribute('aria-checked', 'true')
+  await page.keyboard.press('ArrowDown')
+  await page.keyboard.press('Escape')
+  await expect(
+    page.getByRole('button', { name: 'Theme', exact: true }),
+  ).toBeFocused()
+  await setTheme(page, 'dark')
+  await expect(page.locator('html')).toHaveClass(/dark/)
+  await page.reload()
+  await expect(page.locator('html')).toHaveClass(/dark/)
+  await setLanguage(page, 'nb')
+  await expect(page.locator('html')).toHaveAttribute('lang', 'nb')
+  await page.reload()
+  await expect(page.locator('html')).toHaveAttribute('lang', 'nb')
+  await page.getByRole('button', { name: 'Språk', exact: true }).click()
+  await expect(
+    page.getByRole('menuitemradio', { name: 'Norsk', exact: true }),
+  ).toHaveAttribute('aria-checked', 'true')
+  await page.mouse.click(5, 300)
+  await expect(page.getByRole('menu')).toHaveCount(0)
 })

@@ -1,7 +1,7 @@
 import AxeBuilder from '@axe-core/playwright'
 import { test, expect } from '@playwright/test'
 import { PDFDocument } from 'pdf-lib'
-import { navigate } from './navigation'
+import { navigate, setLanguage } from './navigation'
 async function fixture(pages: number) {
   const doc = await PDFDocument.create()
   for (let n = 0; n < pages; n++)
@@ -17,7 +17,7 @@ test('hundreds of pages use a bounded virtual grid and reusable zoom viewer', as
 }) => {
   test.setTimeout(90000)
   await page.goto('/')
-  await page.getByRole('button', { name: 'EN English', exact: true }).click()
+  await setLanguage(page, 'en')
   await navigate(page, 'extract')
   await page
     .locator('#tool-panel-extract input[type=file]')
@@ -83,7 +83,7 @@ test('document replacement cancels obsolete previews and fixed loading frames ke
   page,
 }) => {
   await page.goto('/')
-  await page.getByRole('button', { name: 'EN English', exact: true }).click()
+  await setLanguage(page, 'en')
   await navigate(page, 'extract')
   const input = page.locator('#tool-panel-extract input[type=file]')
   await input.setInputFiles(await fixture(200))

@@ -1,11 +1,11 @@
 import { test, expect } from '@playwright/test'
-import { showTools } from './navigation'
+import { setLanguage, setTheme, showTools } from './navigation'
 import { settleAppearance } from './appearance'
 test('navigation and palette changes retain AA contrast during every rendered frame', async ({
   page,
 }) => {
   await page.goto('/')
-  await page.getByRole('button', { name: 'EN English', exact: true }).click()
+  await setLanguage(page, 'en')
   await settleAppearance(page)
   // Sample real computed colors, including intermediate frames rather than only endpoints.
   await page.evaluate(() => {
@@ -65,12 +65,7 @@ test('navigation and palette changes retain AA contrast during every rendered fr
     }
   })
   for (const theme of ['dark', 'light', 'dark', 'light']) {
-    await page
-      .getByRole('button', {
-        name: theme === 'dark' ? 'Dark' : 'Light',
-        exact: true,
-      })
-      .click()
+    await setTheme(page, theme as 'light' | 'dark')
     await settleAppearance(page)
     await showTools(page)
     const tool = page.locator('#tool-tab-rotate')

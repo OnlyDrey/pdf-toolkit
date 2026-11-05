@@ -67,11 +67,13 @@
   "theme": {
     "light": "Lyst",
     "dark": "Mørkt",
-    "system": "System"
+    "system": "System",
+    "label": "Tema"
   },
   "language": {
     "en": "Engelsk",
-    "nb": "Norsk"
+    "nb": "Norsk",
+    "label": "Språk"
   },
   "tools": {
     "merge": {

@@ -1,6 +1,6 @@
 import { settleAppearance } from './appearance'
 import { samplePreview } from './pixels'
-import { navigate } from './navigation'
+import { navigate, setLanguage, setTheme } from './navigation'
 import { test, expect, type Page } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
 import {
@@ -87,7 +87,7 @@ function operations(doc: PDFDocument) {
 }
 test.beforeEach(async ({ page }) => {
   await page.goto('/')
-  await page.getByRole('button', { name: 'EN English', exact: true }).click()
+  await setLanguage(page, 'en')
   await navigate(page, 'images')
 })
 test('JPEG keeps original data, uses centered A4 and continues through the shared editing session', async ({
@@ -568,17 +568,9 @@ test('image upload, queue and configuration remain accessible in both languages/
   await expect(panel(page).getByRole('listitem')).toHaveCount(2)
 
   for (const language of ['en', 'nb']) {
-    await page
-      .getByRole('button', {
-        name: language === 'en' ? /English|Engelsk/ : /Norwegian|Norsk/,
-      })
-      .click()
+    await setLanguage(page, language as 'en' | 'nb')
     for (const theme of ['light', 'dark']) {
-      await page
-        .getByRole('button', {
-          name: theme === 'light' ? /Light|Lyst/ : /Dark|Mørkt/,
-        })
-        .click()
+      await setTheme(page, theme as 'light' | 'dark')
       await settleAppearance(page)
       const result = await new AxeBuilder({ page })
         .withTags([

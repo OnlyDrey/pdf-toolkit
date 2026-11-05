@@ -1,9 +1,8 @@
-import { useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Menu, PanelLeftClose, PanelLeftOpen, X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { TOOLS, TOOL_GROUPS, type ToolId } from '@/lib/tools'
 import { useMedia } from '@/lib/use-media'
-import { useModal, trapModalFocus } from '@/components/ui/use-modal'
 import { Brand, AppearanceControls } from './Header'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
@@ -28,9 +27,42 @@ export function WorkspaceShell({
     }
   })
   const collapsed = preference ?? !wide
-  const [open, setOpen] = useState(false),
-    dialog = useRef<HTMLDialogElement>(null)
-  useModal(dialog, open && !desktop)
+  const [openState, setOpen] = useState(false),
+    open = openState && !desktop,
+    bar = useRef<HTMLElement>(null),
+    menu = useRef<HTMLButtonElement>(null)
+  // The navigation panel starts exactly below the (possibly wrapped) sticky navbar.
+  useEffect(() => {
+    const node = bar.current
+    if (!node) return
+    const sync = () =>
+      document.documentElement.style.setProperty(
+        '--topbar-h',
+        node.offsetHeight + 'px',
+      )
+    sync()
+    const observer = new ResizeObserver(sync)
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [])
+  // Lock background scroll; the page keeps its scroll position underneath.
+  useEffect(() => {
+    if (!open) return
+    const overflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    document.getElementById('tool-tab-' + active)?.focus()
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !event.defaultPrevented) {
+        setOpen(false)
+        menu.current?.focus()
+      }
+    }
+    document.addEventListener('keydown', escape)
+    return () => {
+      document.body.style.overflow = overflow
+      document.removeEventListener('keydown', escape)
+    }
+  }, [open, active])
   const choose = (id: ToolId) => {
     onSelect(id)
     if (!desktop) {
@@ -101,16 +133,6 @@ export function WorkspaceShell({
             className="brand-mark mx-auto h-6 w-6 bg-foreground"
           />
         )}
-        {!desktop && (
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label={t('workspace.closeNav')}
-            onClick={() => setOpen(false)}
-          >
-            <X className="h-5 w-5" />
-          </Button>
-        )}
       </div>
       {navigation}
       {desktop && (
@@ -156,39 +178,13 @@ export function WorkspaceShell({
       <a href="#main-content" className="skip-link">
         {t('common.skipToContent')}
       </a>
-      {desktop ? (
+      {desktop && (
         <aside className="sticky top-0 flex h-dvh flex-col gap-3 overflow-y-auto overscroll-contain border-r bg-card p-3">
           {sidebar}
         </aside>
-      ) : (
-        <dialog
-          ref={dialog}
-          aria-label={t('nav.tools')}
-          id="workspace-drawer"
-          className="workspace-drawer"
-          onCancel={(event) => {
-            event.preventDefault()
-            setOpen(false)
-          }}
-          onKeyDown={trapModalFocus}
-          onClick={(event) => {
-            if (event.target === event.currentTarget) {
-              const bounds = event.currentTarget.getBoundingClientRect()
-              if (
-                event.clientX < bounds.left ||
-                event.clientX > bounds.right ||
-                event.clientY < bounds.top ||
-                event.clientY > bounds.bottom
-              )
-                setOpen(false)
-            }
-          }}
-        >
-          {sidebar}
-        </dialog>
       )}
       <div className="min-w-0">
-        <header className="workspace-topbar">
+        <header ref={bar} className="workspace-topbar">
           {!desktop ? (
             <Brand />
           ) : (
@@ -200,21 +196,32 @@ export function WorkspaceShell({
             <AppearanceControls />
             {!desktop && (
               <Button
+                ref={menu}
                 id="workspace-menu"
                 variant="ghost"
                 size="icon"
-                aria-label={t('workspace.openNav')}
+                aria-label={t(
+                  open ? 'workspace.closeNav' : 'workspace.openNav',
+                )}
                 aria-expanded={open}
-                aria-haspopup="dialog"
-                aria-controls="workspace-drawer"
-                onClick={() => setOpen(true)}
+                aria-controls="workspace-nav"
+                onClick={() => setOpen(!open)}
               >
-                <Menu className="h-5 w-5" />
+                {open ? (
+                  <X className="h-5 w-5" />
+                ) : (
+                  <Menu className="h-5 w-5" />
+                )}
               </Button>
             )}
           </div>
         </header>
-        {children}
+        {open && (
+          <div id="workspace-nav" className="workspace-nav">
+            {navigation}
+          </div>
+        )}
+        <div inert={open}>{children}</div>
       </div>
     </div>
   )

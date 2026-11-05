@@ -1,4 +1,11 @@
-import { navigate, showTools, docAction } from './navigation'
+import {
+  hideTools,
+  docAction,
+  navigate,
+  setLanguage,
+  setTheme,
+  showTools,
+} from './navigation'
 import { test, expect, type Page } from '@playwright/test'
 import { PDFDocument } from 'pdf-lib'
 
@@ -43,7 +50,7 @@ async function result(page: Page) {
 }
 test.beforeEach(async ({ page }) => {
   await page.goto('/')
-  await page.getByRole('button', { name: 'EN English', exact: true }).click()
+  await setLanguage(page, 'en')
 })
 test('merge, session switch, extract, rotate, resize, crop and download', async ({
   page,
@@ -153,16 +160,16 @@ test('compression preserves a non-improving original and header edits explain li
 test('theme, language, keyboard upload and responsive layout', async ({
   page,
 }) => {
-  await page.getByRole('button', { name: 'Dark', exact: true }).click()
+  await setTheme(page, 'dark')
   await expect(page.locator('html')).toHaveClass(/dark/)
-  await page.getByRole('button', { name: 'NO Norwegian', exact: true }).click()
+  await setLanguage(page, 'nb')
   await showTools(page)
   await expect(
     page.getByRole('button', { name: 'Slå sammen', exact: true }),
   ).toBeVisible()
   if (await page.locator('#workspace-menu').isVisible())
     await page.keyboard.press('Escape')
-  await page.getByRole('button', { name: 'EN Engelsk', exact: true }).click()
+  await setLanguage(page, 'en')
   const drop = visibleTool(page).getByRole('button', {
     name: 'Drag & drop PDF files here, or click to browse',
   })
@@ -226,7 +233,7 @@ test('VersionFix allows lower and higher headers without rewriting document cont
   await page.getByRole('option', { name: 'PDF 2.0 -', exact: false }).click()
   await apply(page)
   expect((await downloadBytes(page)).subarray(0, 8).toString()).toBe('%PDF-2.0')
-  await page.getByRole('button', { name: 'NO Norwegian', exact: true }).click()
+  await setLanguage(page, 'nb')
   await expect(
     visibleTool(page).getByText('Endrer bare de tre versjonstegnene', {
       exact: false,
@@ -272,17 +279,19 @@ test('keyboard tabs, focus, document language and discard confirmation are predi
   const compress = page.locator('#tool-tab-compress')
   await expect(compress).toBeFocused()
   await page.keyboard.press('Enter')
+  await showTools(page)
   await expect(compress).toHaveAttribute('aria-current', 'page')
   if ((await page.viewportSize())!.width >= 768)
     await expect(compress).toHaveCSS('outline-style', 'solid')
 
   const controls = await compress.getAttribute('aria-controls')
+  await hideTools(page)
   await expect(page.locator('#' + controls)).toHaveAttribute('role', 'region')
   await page.locator('#' + controls).focus()
   await expect(page.locator('#' + controls)).toBeFocused()
-  await page.getByRole('button', { name: 'NO Norwegian', exact: true }).click()
+  await setLanguage(page, 'nb')
   await expect(page.locator('html')).toHaveAttribute('lang', 'nb')
-  await page.getByRole('button', { name: 'EN Engelsk', exact: true }).click()
+  await setLanguage(page, 'en')
   await expect(page.locator('html')).toHaveAttribute('lang', 'en')
   await navigate(page, 'rotate')
   await upload(page, await pdf('confirm.pdf'))

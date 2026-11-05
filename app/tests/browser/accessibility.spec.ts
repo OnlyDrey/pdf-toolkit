@@ -1,5 +1,11 @@
 import { settleAppearance } from './appearance'
-import { navigate, docAction } from './navigation'
+import {
+  docAction,
+  navigate,
+  showTools,
+  setLanguage,
+  setTheme,
+} from './navigation'
 import { test, expect, type Page } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
 import { PDFDocument } from 'pdf-lib'
@@ -24,7 +30,7 @@ async function fixture(page: Page) {
     buffer: Buffer.from(await pdf.save()),
   }
   await page.goto('/')
-  await page.getByRole('button', { name: 'EN English', exact: true }).click()
+  await setLanguage(page, 'en')
   await navigate(page, 'rotate')
   await active(page).locator('input[type=file]').setInputFiles(input)
   await active(page).getByRole('button', { name: 'Apply', exact: true }).click()
@@ -75,20 +81,10 @@ test('all tools pass axe in both themes and languages with a working PDF', async
     .locator('input[type=file]')
     .setInputFiles([input, { ...input, name: 'second.pdf' }])
   for (const language of ['en', 'nb']) {
-    await page
-      .getByRole('button', {
-        name: language === 'en' ? /English|Engelsk/ : /Norwegian|Norsk/,
-        exact: true,
-      })
-      .click()
+    await setLanguage(page, language as 'en' | 'nb')
     await expect(page.locator('html')).toHaveAttribute('lang', language)
     for (const theme of ['light', 'dark']) {
-      await page
-        .getByRole('button', {
-          name: theme === 'light' ? /Light|Lyst/ : /Dark|Mørkt/,
-          exact: true,
-        })
-        .click()
+      await setTheme(page, theme as 'light' | 'dark')
       for (const tool of tools) {
         await navigate(page, tool)
         const canvas = active(page).locator('[data-pdf-preview]').first()
@@ -140,7 +136,7 @@ test('axe covers validation feedback, processing, dropdowns and discard dialog',
     }
   })
   await page.reload()
-  await page.getByRole('button', { name: 'EN English', exact: true }).click()
+  await setLanguage(page, 'en')
   await navigate(page, 'compress')
   await active(page).locator('input[type=file]').setInputFiles(input)
   await active(page).getByRole('button', { name: 'Apply', exact: true }).click()
@@ -182,6 +178,7 @@ test('reflow at 320/640 CSS pixels and 200% text sizing keeps every tool reachab
     ).toBe(true)
   }
   await page.emulateMedia({ reducedMotion: 'reduce' })
+  await showTools(page)
   await expect(page.locator('#tool-tab-versionFix')).toHaveCSS(
     'transition-duration',
     '1e-05s',

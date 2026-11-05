@@ -1,9 +1,7 @@
-import { Sun, Moon, Monitor } from 'lucide-react'
+import { Sun, Moon, Monitor, Globe } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { Button } from '@/components/ui/button'
-import { Separator } from '@/components/ui/separator'
+import { ChoiceMenu } from '@/components/ui/choice-menu'
 import { useTheme, type Theme } from '@/lib/theme-context'
-import { cn } from '@/lib/utils'
 
 const THEME_ICONS: Record<Theme, React.ReactNode> = {
   light: <Sun className="h-4 w-4" />,
@@ -16,47 +14,28 @@ export function AppearanceControls() {
   const { theme, setTheme } = useTheme()
   const currentLang = i18n.language.startsWith('nb') ? 'nb' : 'en'
   return (
-    <div className="flex max-w-full flex-wrap items-center gap-2">
-      {/* Theme toggle: Sun / Moon / Monitor */}
-      <div className="flex items-center rounded-md border p-0.5">
-        {(['light', 'dark', 'system'] as Theme[]).map((th) => (
-          <button
-            key={th}
-            type="button"
-            onClick={() => setTheme(th)}
-            aria-label={t(`theme.${th}`)}
-            aria-pressed={theme === th}
-            className={cn(
-              'flex items-center justify-center min-h-8 min-w-8 rounded p-1.5',
-              theme === th
-                ? 'bg-primary text-primary-foreground'
-                : 'text-muted-foreground hover:text-foreground',
-            )}
-          >
-            {THEME_ICONS[th]}
-          </button>
-        ))}
-      </div>
-      <Separator orientation="vertical" className="h-6" />
-      {/* Language toggle */}
-      <div className="flex items-center gap-1">
-        <Button
-          className="transition-none"
-          variant={currentLang === 'en' ? 'default' : 'ghost'}
-          size="sm"
-          onClick={() => i18n.changeLanguage('en')}
-        >
-          EN<span className="sr-only"> {t('language.en')}</span>
-        </Button>
-        <Button
-          className="transition-none"
-          variant={currentLang === 'nb' ? 'default' : 'ghost'}
-          size="sm"
-          onClick={() => i18n.changeLanguage('nb')}
-        >
-          NO<span className="sr-only"> {t('language.nb')}</span>
-        </Button>
-      </div>
+    <div className="flex items-center gap-1">
+      <ChoiceMenu
+        label={t('theme.label')}
+        icon={THEME_ICONS[theme]}
+        value={theme}
+        onChange={(value) => setTheme(value as Theme)}
+        choices={(['light', 'dark', 'system'] as Theme[]).map((th) => ({
+          value: th,
+          label: t(`theme.${th}`),
+          icon: THEME_ICONS[th],
+        }))}
+      />
+      <ChoiceMenu
+        label={t('language.label')}
+        icon={<Globe className="h-4 w-4" />}
+        value={currentLang}
+        onChange={(value) => void i18n.changeLanguage(value)}
+        choices={[
+          { value: 'nb', label: 'Norsk' },
+          { value: 'en', label: 'English' },
+        ]}
+      />
     </div>
   )
 }
